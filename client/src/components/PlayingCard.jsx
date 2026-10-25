@@ -1,71 +1,79 @@
 /**
- * PlayingCard.jsx
- * Full poker-quality playing cards rendered entirely in JSX/CSS.
- * - Number cards: classic pip arrangement (suit symbols counted & positioned)
- * - Face cards: stylised letter art (J/Q/K) with decorative inner border
- * - Ace: large centred suit with ornate frame
- * - Card back: diamond cross-hatch pattern
+ * PlayingCard.jsx — Viewport-relative poker cards.
+ * Sizes are defined in vw so cards are always large regardless of screen resolution.
+ *
+ * Card anatomy (real deck):
+ *  - Rank + suit symbol in top-left & bottom-right corners
+ *  - Number cards: classic pip arrangement
+ *  - Ace: large centred suit symbol
+ *  - Face cards (J/Q/K): illustrated panel with gradient + letter art
+ *  - Back: cross-hatch pattern
  */
 
 const SUIT_SYMBOL = { h: '♥', d: '♦', c: '♣', s: '♠' };
-const SUIT_COLOR  = { h: '#dc2626', d: '#dc2626', c: '#1a1a1a', s: '#1a1a1a' };
+const SUIT_COLOR  = { h: '#e02020', d: '#e02020', c: '#111', s: '#111' };
 const RANK_LABEL  = { T: '10', J: 'J', Q: 'Q', K: 'K', A: 'A' };
 
-// ── Pip grid positions (% from top-left) for each rank ────────────────────────
-// Each entry is [x%, y%] within the pip area (excludes corner labels)
+// ── Pip positions [x%, y%] within the pip area for each rank ──────────────────
 const PIP_LAYOUTS = {
-  '2': [[50,25],[50,75]],
-  '3': [[50,20],[50,50],[50,80]],
-  '4': [[25,25],[75,25],[25,75],[75,75]],
-  '5': [[25,20],[75,20],[50,50],[25,80],[75,80]],
-  '6': [[25,20],[75,20],[25,50],[75,50],[25,80],[75,80]],
-  '7': [[25,18],[75,18],[50,37],[25,55],[75,55],[25,78],[75,78]],
-  '8': [[25,16],[75,16],[50,33],[25,50],[75,50],[50,67],[25,84],[75,84]],
-  '9': [[25,16],[75,16],[25,38],[75,38],[50,50],[25,62],[75,62],[25,84],[75,84]],
-  'T': [[25,14],[75,14],[25,32],[75,32],[25,50],[75,50],[25,68],[75,68],[25,86],[75,86]],
+  '2': [[50,22],[50,78]],
+  '3': [[50,18],[50,50],[50,82]],
+  '4': [[25,22],[75,22],[25,78],[75,78]],
+  '5': [[25,18],[75,18],[50,50],[25,82],[75,82]],
+  '6': [[25,18],[75,18],[25,50],[75,50],[25,82],[75,82]],
+  '7': [[25,16],[75,16],[50,35],[25,55],[75,55],[25,84],[75,84]],
+  '8': [[25,14],[75,14],[50,32],[25,50],[75,50],[50,68],[25,86],[75,86]],
+  '9': [[25,14],[75,14],[25,36],[75,36],[50,50],[25,64],[75,64],[25,86],[75,86]],
+  'T': [[25,12],[75,12],[25,30],[75,30],[25,50],[75,50],[25,68],[75,68],[25,88],[75,88]],
 };
 
-// Pips in the bottom half are flipped 180°
-const FLIP_THRESHOLD = 52; // y% above this = top half, below = flip
+// Pips below this y% are rotated 180°
+const FLIP_Y = 51;
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function Corner({ label, sym, color, flip = false }) {
+  return (
+    <div style={{
+      position:  'absolute',
+      ...(flip ? { bottom: '3%', right: '6%', transform: 'rotate(180deg)' }
+               : { top: '3%',   left: '6%' }),
+      color,
+      lineHeight: 1,
+      display:   'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+    }}>
+      <span style={{ fontSize: '19%', fontWeight: 900, lineHeight: 1 }}>{label}</span>
+      <span style={{ fontSize: '17%', lineHeight: 1.1 }}>{sym}</span>
+    </div>
+  );
+}
 
 function PipCard({ rank, suit }) {
   const sym   = SUIT_SYMBOL[suit];
   const color = SUIT_COLOR[suit];
-  const pips  = PIP_LAYOUTS[rank] ?? [];
   const label = RANK_LABEL[rank] ?? rank;
+  const pips  = PIP_LAYOUTS[rank] ?? [];
 
   return (
-    <div className="w-full h-full relative bg-white rounded-[inherit] overflow-hidden select-none">
-      {/* Top-left corner */}
-      <div className="absolute top-[4%] left-[7%] flex flex-col items-center leading-none"
-           style={{ color }}>
-        <span className="font-black" style={{ fontSize: '18%', lineHeight: 1 }}>{label}</span>
-        <span style={{ fontSize: '16%', lineHeight: 1.1 }}>{sym}</span>
-      </div>
-      {/* Bottom-right corner (rotated) */}
-      <div className="absolute bottom-[4%] right-[7%] flex flex-col items-center leading-none rotate-180"
-           style={{ color }}>
-        <span className="font-black" style={{ fontSize: '18%', lineHeight: 1 }}>{label}</span>
-        <span style={{ fontSize: '16%', lineHeight: 1.1 }}>{sym}</span>
-      </div>
-
+    <div style={{ width: '100%', height: '100%', position: 'relative',
+                  background: 'white', borderRadius: 'inherit', overflow: 'hidden' }}>
+      <Corner label={label} sym={sym} color={color} />
+      <Corner label={label} sym={sym} color={color} flip />
       {/* Pip area */}
-      <div className="absolute inset-[12%] inset-x-[10%]">
+      <div style={{ position: 'absolute', inset: '14% 10% 14% 10%' }}>
         {pips.map(([x, y], i) => (
-          <span
-            key={i}
-            className="absolute"
-            style={{
-              left:      `${x}%`,
-              top:       `${y}%`,
-              transform: `translate(-50%, -50%) ${y > FLIP_THRESHOLD ? 'rotate(180deg)' : ''}`,
-              color,
-              fontSize:  '22%',
-              lineHeight: 1,
-            }}
-          >
-            {sym}
-          </span>
+          <span key={i} style={{
+            position:  'absolute',
+            left:      `${x}%`,
+            top:       `${y}%`,
+            transform: `translate(-50%,-50%) ${y > FLIP_Y ? 'rotate(180deg)' : ''}`,
+            color,
+            fontSize:  '23%',
+            lineHeight: 1,
+            userSelect: 'none',
+          }}>{sym}</span>
         ))}
       </div>
     </div>
@@ -75,71 +83,17 @@ function PipCard({ rank, suit }) {
 function AceCard({ suit }) {
   const sym   = SUIT_SYMBOL[suit];
   const color = SUIT_COLOR[suit];
-  const label = 'A';
-
   return (
-    <div className="w-full h-full relative bg-white rounded-[inherit] overflow-hidden select-none">
-      {/* Corners */}
-      <div className="absolute top-[4%] left-[7%] flex flex-col items-center leading-none" style={{ color }}>
-        <span className="font-black" style={{ fontSize: '18%', lineHeight: 1 }}>{label}</span>
-        <span style={{ fontSize: '16%', lineHeight: 1.1 }}>{sym}</span>
-      </div>
-      <div className="absolute bottom-[4%] right-[7%] flex flex-col items-center leading-none rotate-180" style={{ color }}>
-        <span className="font-black" style={{ fontSize: '18%', lineHeight: 1 }}>{label}</span>
-        <span style={{ fontSize: '16%', lineHeight: 1.1 }}>{sym}</span>
-      </div>
-
-      {/* Large centre suit with ornate ring */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative flex items-center justify-center rounded-full"
-             style={{
-               width: '52%', height: '52%',
-               border: `2px solid ${color}22`,
-             }}>
-          <span className="font-black" style={{ fontSize: '38%', color, lineHeight: 1 }}>{sym}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Face card inner art — large letter + decorative elements
-const FACE_GRADIENTS = {
-  J: { top: '#fbbf24', bot: '#f59e0b' },
-  Q: { top: '#ec4899', bot: '#be185d' },
-  K: { top: '#6366f1', bot: '#4338ca' },
-};
-
-function FaceCard({ rank, suit }) {
-  const sym    = SUIT_SYMBOL[suit];
-  const color  = SUIT_COLOR[suit];
-  const label  = RANK_LABEL[rank];
-  const grad   = FACE_GRADIENTS[rank];
-
-  return (
-    <div className="w-full h-full relative bg-white rounded-[inherit] overflow-hidden select-none">
-      {/* Corners */}
-      <div className="absolute top-[4%] left-[7%] flex flex-col items-center leading-none" style={{ color }}>
-        <span className="font-black" style={{ fontSize: '18%', lineHeight: 1 }}>{label}</span>
-        <span style={{ fontSize: '16%', lineHeight: 1.1 }}>{sym}</span>
-      </div>
-      <div className="absolute bottom-[4%] right-[7%] flex flex-col items-center leading-none rotate-180" style={{ color }}>
-        <span className="font-black" style={{ fontSize: '18%', lineHeight: 1 }}>{label}</span>
-        <span style={{ fontSize: '16%', lineHeight: 1.1 }}>{sym}</span>
-      </div>
-
-      {/* Face art area */}
-      <div className="absolute inset-[10%] rounded-lg overflow-hidden flex flex-col items-center justify-center gap-1"
-           style={{ background: `linear-gradient(160deg, ${grad.top}, ${grad.bot})` }}>
-        {/* Decorative border */}
-        <div className="absolute inset-[4%] rounded border border-white/30" />
-
-        {/* Big rank letter */}
-        <span className="font-black text-white drop-shadow-md" style={{ fontSize: '36%', lineHeight: 1 }}>
-          {label}
-        </span>
-        {/* Suit symbol below */}
-        <span className="font-bold drop-shadow" style={{ fontSize: '24%', color: 'rgba(255,255,255,0.85)', lineHeight: 1 }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative',
+                  background: 'white', borderRadius: 'inherit', overflow: 'hidden' }}>
+      <Corner label="A" sym={sym} color={color} />
+      <Corner label="A" sym={sym} color={color} flip />
+      {/* Big centre suit */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <span style={{ fontSize: '42%', color, fontWeight: 900, lineHeight: 1, userSelect: 'none' }}>
           {sym}
         </span>
       </div>
@@ -147,67 +101,111 @@ function FaceCard({ rank, suit }) {
   );
 }
 
+const FACE_COLORS = {
+  J: { bg: 'linear-gradient(150deg,#fef08a,#f59e0b)', text: '#78350f' },
+  Q: { bg: 'linear-gradient(150deg,#fbcfe8,#ec4899)', text: '#831843' },
+  K: { bg: 'linear-gradient(150deg,#c7d2fe,#6366f1)', text: '#1e1b4b' },
+};
+
+function FaceCard({ rank, suit }) {
+  const sym   = SUIT_SYMBOL[suit];
+  const color = SUIT_COLOR[suit];
+  const label = RANK_LABEL[rank];
+  const fc    = FACE_COLORS[rank];
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative',
+                  background: 'white', borderRadius: 'inherit', overflow: 'hidden' }}>
+      <Corner label={label} sym={sym} color={color} />
+      <Corner label={label} sym={sym} color={color} flip />
+      {/* Art panel */}
+      <div style={{
+        position: 'absolute', inset: '12% 9%',
+        background: fc.bg,
+        borderRadius: '8%',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        gap: '4%',
+        boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.4)',
+        overflow: 'hidden',
+      }}>
+        {/* Inner border */}
+        <div style={{
+          position: 'absolute', inset: '4%',
+          border: `2px solid rgba(255,255,255,0.35)`,
+          borderRadius: '6%',
+        }} />
+        <span style={{ fontSize: '42%', fontWeight: 900, color: fc.text, lineHeight: 1, userSelect: 'none',
+                       textShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>{label}</span>
+        <span style={{ fontSize: '28%', color: fc.text, lineHeight: 1, opacity: 0.85, userSelect: 'none' }}>{sym}</span>
+      </div>
+    </div>
+  );
+}
+
 function CardBack() {
   return (
-    <div className="w-full h-full relative rounded-[inherit] overflow-hidden select-none"
-         style={{ background: '#1e3a8a' }}>
-      {/* Border frame */}
-      <div className="absolute inset-[5%] rounded border border-blue-400/40" />
-      {/* Cross-hatch pattern via repeating gradient */}
-      <div className="absolute inset-[7%] rounded overflow-hidden"
-           style={{
-             backgroundImage: `
-               repeating-linear-gradient(45deg,  transparent, transparent 4px, rgba(99,179,237,0.15) 4px, rgba(99,179,237,0.15) 5px),
-               repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(99,179,237,0.15) 4px, rgba(99,179,237,0.15) 5px)
-             `,
-             backgroundColor: '#1e40af',
-           }} />
+    <div style={{
+      width: '100%', height: '100%',
+      borderRadius: 'inherit', overflow: 'hidden',
+      background: '#1e40af',
+      position: 'relative',
+    }}>
+      {/* Outer frame */}
+      <div style={{ position: 'absolute', inset: '5%', borderRadius: '8%',
+                    border: '2px solid rgba(147,197,253,0.35)' }} />
+      {/* Cross-hatch */}
+      <div style={{
+        position: 'absolute', inset: '8%', borderRadius: '6%', overflow: 'hidden',
+        backgroundImage: `
+          repeating-linear-gradient(45deg,  transparent, transparent 5px, rgba(99,179,237,0.18) 5px, rgba(99,179,237,0.18) 6px),
+          repeating-linear-gradient(-45deg, transparent, transparent 5px, rgba(99,179,237,0.18) 5px, rgba(99,179,237,0.18) 6px)
+        `,
+        backgroundColor: '#1d4ed8',
+      }} />
       {/* Centre diamond */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
         <div style={{
-          width: '22%', height: '22%',
+          width: '24%', height: '24%',
           background: '#3b82f6',
           transform: 'rotate(45deg)',
-          border: '2px solid rgba(147,197,253,0.4)',
+          border: '2px solid rgba(147,197,253,0.5)',
         }} />
       </div>
     </div>
   );
 }
 
-// ── Public <PlayingCard> component ─────────────────────────────────────────────
+// ── Public component ──────────────────────────────────────────────────────────
 /**
- * @param {string}  card   — e.g. 'Ah', 'Td', 'Ks', 'BACK', or null/undefined
- * @param {'sm'|'md'|'lg'|'xl'} size
- * @param {boolean} faceDown
+ * @param {string}  card     'Ah','Td','BACK', null
+ * @param {string}  width    CSS width string, e.g. '13vw', '80px' — height auto at 1.4 ratio
+ * @param {boolean} faceDown force card back
  */
-export default function PlayingCard({ card, size = 'md', faceDown = false }) {
-  // Dimensions — width × height, keeping ~1:1.4 ratio
-  const dims = {
-    sm:  { w: 44,  h: 62  },
-    md:  { w: 58,  h: 82  },
-    lg:  { w: 72,  h: 102 },
-    xl:  { w: 90,  h: 126 },
-  }[size] ?? { w: 58, h: 82 };
-
-  const wrapStyle = {
-    width:        dims.w,
-    height:       dims.h,
-    borderRadius: dims.w * 0.09,
-    flexShrink:   0,
-    boxShadow:    '2px 3px 10px rgba(0,0,0,0.55)',
-    fontSize:     dims.w,   // all internal sizes are % of this → scales perfectly
-    position:     'relative',
+export default function PlayingCard({ card, width = '13vw', faceDown = false }) {
+  const style = {
+    width,
+    // Classic card ratio 2.5 : 3.5 = 1 : 1.4
+    aspectRatio: '5 / 7',
+    borderRadius: `calc(${width} * 0.08)`,
+    flexShrink: 0,
+    boxShadow: '2px 4px 14px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.4)',
+    position: 'relative',
+    // fontSize drives ALL internal % sizes — set to width value
+    fontSize: width,
   };
 
   const inner = (() => {
     if (!card || card === 'BACK' || faceDown) return <CardBack />;
     const rank = card.slice(0, -1);
     const suit = card.slice(-1);
-    if (rank === 'A')                    return <AceCard  rank={rank} suit={suit} />;
-    if (['J','Q','K'].includes(rank))    return <FaceCard rank={rank} suit={suit} />;
+    if (rank === 'A')                 return <AceCard  rank={rank} suit={suit} />;
+    if (['J','Q','K'].includes(rank)) return <FaceCard rank={rank} suit={suit} />;
     return <PipCard rank={rank} suit={suit} />;
   })();
 
-  return <div style={wrapStyle}>{inner}</div>;
+  return <div style={style}>{inner}</div>;
 }

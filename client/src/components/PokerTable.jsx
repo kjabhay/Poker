@@ -3,17 +3,24 @@ import socket, { playerId } from '../socket';
 import ActionBar from './ActionBar';
 import PlayingCard from './PlayingCard';
 
-// ─── Seat positions (% relative to wrapper div) ───────────────────────────────
+// Community cards: 5 cards × 12vw + gaps ≈ 65vw — big and readable
+const COMMUNITY_CARD_W = '11vw';
+// Opponent hole cards: smaller so they fit in the seat chip
+const OPPONENT_CARD_W  = '5.5vw';
+// My own cards at the bottom: prominent
+const MY_CARD_W        = '9vw';
+
+// ─── Seat positions (% of wrapper) ───────────────────────────────────────────
 const SEAT_POSITIONS = [
-  { bottom: '-16%', left: '50%',  transform: 'translateX(-50%)' }, // 0 you — bottom
-  { bottom: '-4%',  left: '74%',  transform: 'none' },              // 1
-  { top:    '18%',  left: '90%',  transform: 'none' },              // 2
-  { top:    '-8%',  left: '74%',  transform: 'none' },              // 3
-  { top:    '-16%', left: '50%',  transform: 'translateX(-50%)' }, // 4
-  { top:    '-8%',  right: '74%', transform: 'none' },              // 5
-  { top:    '18%',  right: '90%', transform: 'none' },              // 6
-  { bottom: '-4%',  right: '74%', transform: 'none' },              // 7
-  { bottom: '15%',  left: '50%',  transform: 'translateX(-50%)' }, // 8
+  { bottom: '-18%', left: '50%',  transform: 'translateX(-50%)' }, // 0 — you, bottom
+  { bottom: '-5%',  left: '74%',  transform: 'none' },              // 1
+  { top:    '15%',  left: '91%',  transform: 'none' },              // 2
+  { top:    '-10%', left: '74%',  transform: 'none' },              // 3
+  { top:    '-18%', left: '50%',  transform: 'translateX(-50%)' }, // 4
+  { top:    '-10%', right: '74%', transform: 'none' },              // 5
+  { top:    '15%',  right: '91%', transform: 'none' },              // 6
+  { bottom: '-5%',  right: '74%', transform: 'none' },              // 7
+  { bottom: '14%',  left: '50%',  transform: 'translateX(-50%)' }, // 8
 ];
 
 // ─── PlayerSeat ───────────────────────────────────────────────────────────────
@@ -21,58 +28,69 @@ function PlayerSeat({ player, isDealer, isActive, isMe }) {
   const isFolded = player.status === 'FOLDED';
   const isAllIn  = player.status === 'ALL_IN';
   const isOut    = player.status === 'OUT';
+  const cardW    = isMe ? MY_CARD_W : OPPONENT_CARD_W;
 
   return (
-    <div className={`flex flex-col items-center gap-1 transition-opacity duration-300
-                     ${isFolded || isOut ? 'opacity-35' : 'opacity-100'}`}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                  opacity: isFolded || isOut ? 0.35 : 1, transition: 'opacity 0.3s' }}>
 
       {/* Hole cards — fanned */}
-      <div className="flex items-end" style={{ gap: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end' }}>
         {player.holeCards?.length > 0
           ? player.holeCards.map((c, i) => (
               <div key={i} style={{
-                transform: player.holeCards.length === 2
-                  ? (i === 0 ? 'rotate(-6deg) translateY(2px)' : 'rotate(6deg) translateY(2px)')
-                  : 'none',
-                marginRight: i === 0 ? '-6px' : 0,
+                transform: `rotate(${i === 0 ? -6 : 6}deg) translateY(3px)`,
+                marginRight: i === 0 ? `calc(${cardW} * -0.25)` : 0,
                 zIndex: i,
               }}>
-                <PlayingCard card={c} size="sm" />
+                <PlayingCard card={c} width={cardW} />
               </div>
             ))
-          : <div style={{ height: 62 }} />
+          : <div style={{ height: `calc(${cardW} * 1.4)` }} />
         }
       </div>
 
       {/* Name plate */}
-      <div className={`relative px-2.5 py-1.5 rounded-xl text-xs font-semibold
-                       min-w-[76px] text-center transition-all duration-200
-                       ${isActive
-                         ? 'bg-yellow-400 text-gray-950 scale-105 shadow-lg shadow-yellow-500/40'
-                         : isMe
-                           ? 'bg-blue-950 border border-blue-500 text-white'
-                           : 'bg-gray-900/95 border border-gray-700 text-white'}`}>
-        {/* Dealer chip */}
+      <div style={{ position: 'relative', padding: '5px 10px', borderRadius: 12,
+                    minWidth: 76, textAlign: 'center', fontSize: 12, fontWeight: 600,
+                    transition: 'all 0.2s',
+                    background:    isActive ? '#facc15' : isMe ? '#172554' : 'rgba(17,17,28,0.95)',
+                    border:        isActive ? 'none' : isMe ? '1px solid #3b82f6' : '1px solid #374151',
+                    color:         isActive ? '#111' : '#fff',
+                    transform:     isActive ? 'scale(1.08)' : 'scale(1)',
+                    boxShadow:     isActive ? '0 0 16px rgba(250,204,21,0.5)' : 'none',
+                  }}>
         {isDealer && (
-          <span className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-white
-                           text-gray-900 text-[10px] font-black border-2 border-gray-300
-                           flex items-center justify-center shadow-md z-10">D</span>
+          <span style={{
+            position: 'absolute', top: -10, right: -10,
+            width: 22, height: 22, borderRadius: '50%',
+            background: '#fff', color: '#111', fontSize: 10, fontWeight: 900,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '2px solid #d1d5db', boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+            zIndex: 10,
+          }}>D</span>
         )}
-        {/* Online dot */}
-        <span className={`absolute top-1.5 left-2 w-1.5 h-1.5 rounded-full
-                          ${player.isConnected ? 'bg-green-400' : 'bg-gray-500'}`} />
-        <div className="pl-2 truncate max-w-[90px] font-bold">{player.name}{isMe ? ' ★' : ''}</div>
-        <div className={`text-[10px] font-mono ${isActive ? 'text-gray-700' : 'text-gray-400'}`}>
+        <span style={{
+          position: 'absolute', top: 5, left: 7, width: 6, height: 6, borderRadius: '50%',
+          background: player.isConnected ? '#4ade80' : '#6b7280',
+        }} />
+        <div style={{ paddingLeft: 8, maxWidth: 90, overflow: 'hidden',
+                      textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700 }}>
+          {player.name}{isMe ? ' ★' : ''}
+        </div>
+        <div style={{ fontSize: 10, fontFamily: 'monospace',
+                      color: isActive ? '#444' : '#9ca3af' }}>
           {player.coins.toLocaleString()} 🪙
         </div>
-        {isAllIn  && <div className="text-[9px] font-black text-yellow-500 tracking-wider mt-0.5">ALL-IN</div>}
-        {isFolded && <div className="text-[9px] font-black text-red-400 tracking-wider mt-0.5">FOLDED</div>}
+        {isAllIn  && <div style={{ fontSize: 9, fontWeight: 900, color: '#eab308', letterSpacing: 1, marginTop: 2 }}>ALL-IN</div>}
+        {isFolded && <div style={{ fontSize: 9, fontWeight: 900, color: '#f87171', letterSpacing: 1, marginTop: 2 }}>FOLDED</div>}
       </div>
 
       {/* Bet chip */}
       {player.currentBet > 0 && (
-        <div className="px-2 py-0.5 rounded-full bg-black border border-gray-600
-                        text-[10px] font-mono text-cyan-300 shadow">
+        <div style={{ padding: '2px 8px', borderRadius: 999, background: '#000',
+                      border: '1px solid #4b5563', fontSize: 10, fontFamily: 'monospace',
+                      color: '#67e8f9', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
           {player.currentBet.toLocaleString()}
         </div>
       )}
@@ -84,15 +102,23 @@ function PlayerSeat({ player, isDealer, isActive, isMe }) {
 function ShowdownBanner({ showdown }) {
   if (!showdown) return null;
   return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center
-                    bg-black/70 rounded-[50%] pointer-events-none">
-      <div className="text-center px-6 py-4 rounded-2xl bg-gray-950/95
-                      border border-yellow-400/60 shadow-2xl">
-        <div className="text-3xl mb-1">🏆</div>
-        <p className="text-yellow-400 font-extrabold text-lg">
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 20,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.72)', borderRadius: '50%', pointerEvents: 'none',
+    }}>
+      <div style={{
+        textAlign: 'center', padding: '20px 28px', borderRadius: 18,
+        background: 'rgba(10,10,20,0.97)', border: '1px solid rgba(250,204,21,0.6)',
+        boxShadow: '0 0 40px rgba(0,0,0,0.8)',
+      }}>
+        <div style={{ fontSize: 32, marginBottom: 6 }}>🏆</div>
+        <p style={{ color: '#facc15', fontWeight: 800, fontSize: 18, lineHeight: 1.2 }}>
           {showdown.winners.map(w => w.name).join(' & ')}
         </p>
-        <p className="text-gray-300 text-sm mt-1">{showdown.winningHandDescription}</p>
+        <p style={{ color: '#d1d5db', fontSize: 13, marginTop: 6 }}>
+          {showdown.winningHandDescription}
+        </p>
       </div>
     </div>
   );
@@ -160,15 +186,14 @@ export default function PokerTable({ roomState: initialState }) {
       setRoomState(state);
       if (state.status !== 'SHOWDOWN') setWaitingForDeal(null);
     }
-    function onShowdown(data)      { setShowdown(data); }
-    function onWaitForDeal(data)   { setWaitingForDeal(data); setShowdown(null); }
-    function onGameOver(data)      { setGameOver(data); }
+    function onShowdown(data)    { setShowdown(data); }
+    function onWaitForDeal(data) { setWaitingForDeal(data); setShowdown(null); }
+    function onGameOver(data)    { setGameOver(data); }
     function onHoleCards({ holeCards }) {
       setRoomState(prev => prev
         ? { ...prev, players: prev.players.map(p => p.playerId === playerId ? { ...p, holeCards } : p) }
         : prev);
     }
-
     socket.on('room:state',          onState);
     socket.on('game:showdown',       onShowdown);
     socket.on('game:waitingForDeal', onWaitForDeal);
@@ -188,13 +213,12 @@ export default function PokerTable({ roomState: initialState }) {
   if (!roomState) return null;
   if (gameOver)   return <GameOverScreen gameOver={gameOver} />;
 
-  // Rotate so local player is always bottom
   const myIndex          = roomState.players.findIndex(p => p.playerId === playerId);
   const n                = roomState.players.length;
   const rotated          = myIndex >= 0
     ? [...roomState.players.slice(myIndex), ...roomState.players.slice(0, myIndex)]
     : roomState.players;
-  const rotatedDealerIdx = myIndex >= 0 ? (roomState.dealerIdx     - myIndex + n) % n : roomState.dealerIdx;
+  const rotatedDealerIdx = myIndex >= 0 ? (roomState.dealerIdx      - myIndex + n) % n : roomState.dealerIdx;
   const rotatedTurnIdx   = myIndex >= 0 ? (roomState.currentTurnIdx - myIndex + n) % n : roomState.currentTurnIdx;
 
   const streetBadge = {
@@ -225,31 +249,49 @@ export default function PokerTable({ roomState: initialState }) {
       </div>
 
       {/* Table */}
-      <div className="flex-1 flex items-center justify-center overflow-hidden px-4 py-2">
-        <div className="relative w-full" style={{ maxHeight: '100%', aspectRatio: '2 / 1.2' }}>
+      <div className="flex-1 flex items-center justify-center overflow-hidden"
+           style={{ padding: '1vh 2vw' }}>
+        {/* Aspect-ratio wrapper */}
+        <div style={{ position: 'relative', width: '100%', maxHeight: '100%', aspectRatio: '2 / 1.15' }}>
 
           {/* Felt oval */}
-          <div className="absolute inset-[11%] inset-x-[4%] rounded-[50%]"
-               style={{
-                 background: 'radial-gradient(ellipse at 50% 35%, #267022, #174414)',
-                 boxShadow: '0 0 0 10px #3d2510, 0 0 0 14px #2a1a0a, 0 10px 50px rgba(0,0,0,0.85)',
-               }}>
-
+          <div style={{
+            position: 'absolute',
+            inset: '11% 4%',
+            borderRadius: '50%',
+            background: 'radial-gradient(ellipse at 50% 38%, #2d8028, #174414)',
+            boxShadow: '0 0 0 10px #4a2e10, 0 0 0 15px #2a1a08, 0 12px 60px rgba(0,0,0,0.9)',
+          }}>
             <ShowdownBanner showdown={showdown} />
 
             {/* Community cards + pot */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
-              <div className="flex gap-2 items-center">
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: '1.5vh',
+              pointerEvents: 'none',
+            }}>
+              <div style={{ display: 'flex', gap: '1vw', alignItems: 'center' }}>
                 {Array.from({ length: 5 }, (_, i) =>
                   roomState.communityCards[i]
-                    ? <PlayingCard key={i} card={roomState.communityCards[i]} size="md" />
-                    : <div key={i} style={{ width: 58, height: 82, borderRadius: 6,
-                                            border: '2px dashed rgba(255,255,255,0.12)',
-                                            background: 'rgba(0,0,0,0.2)', flexShrink: 0 }} />
+                    ? <PlayingCard key={i} card={roomState.communityCards[i]} width={COMMUNITY_CARD_W} />
+                    : (
+                      <div key={i} style={{
+                        width: COMMUNITY_CARD_W,
+                        aspectRatio: '5/7',
+                        borderRadius: `calc(${COMMUNITY_CARD_W} * 0.08)`,
+                        border: '2px dashed rgba(255,255,255,0.13)',
+                        background: 'rgba(0,0,0,0.18)',
+                        flexShrink: 0,
+                      }} />
+                    )
                 )}
               </div>
-              <div className="px-4 py-1 rounded-full bg-black/60 border border-white/10
-                              text-sm font-bold text-yellow-400">
+              <div style={{
+                padding: '4px 16px', borderRadius: 999,
+                background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.1)',
+                fontSize: 14, fontWeight: 700, color: '#facc15',
+              }}>
                 Pot: {roomState.pot.toLocaleString()} 🪙
               </div>
             </div>
@@ -260,9 +302,12 @@ export default function PokerTable({ roomState: initialState }) {
             const pos = SEAT_POSITIONS[rotIdx];
             if (!pos) return null;
             return (
-              <div key={player.playerId} className="absolute"
-                   style={{ bottom: pos.bottom, top: pos.top, left: pos.left,
-                            right: pos.right, transform: pos.transform }}>
+              <div key={player.playerId} style={{
+                position: 'absolute',
+                bottom: pos.bottom, top: pos.top,
+                left: pos.left, right: pos.right,
+                transform: pos.transform,
+              }}>
                 <PlayerSeat
                   player={player}
                   isDealer={rotIdx === rotatedDealerIdx}

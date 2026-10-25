@@ -4,11 +4,11 @@ import ActionBar from './ActionBar';
 import PlayingCard from './PlayingCard';
 
 // Community cards: 5 cards × 12vw + gaps ≈ 65vw — big and readable
-const COMMUNITY_CARD_W = '11vw';
+const COMMUNITY_CARD_W = '22vw';
 // Opponent hole cards: smaller so they fit in the seat chip
-const OPPONENT_CARD_W  = '5.5vw';
+const OPPONENT_CARD_W  = '11vw';
 // My own cards at the bottom: prominent
-const MY_CARD_W        = '9vw';
+const MY_CARD_W        = '18vw';
 
 // ─── Seat positions (% of wrapper) ───────────────────────────────────────────
 const SEAT_POSITIONS = [

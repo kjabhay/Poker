@@ -34,8 +34,8 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// ── Socket.IO handlers (wired in Step 4) ─────────────────────────────────────
-// require('./socketHandlers')(io);
+// ── Socket.IO handlers ────────────────────────────────────────────────────────
+require('./socketHandlers')(io);
 
 // ── Start server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 8000;

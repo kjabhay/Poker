@@ -284,8 +284,9 @@ function handlePlayerAction(room, playerId, action, raiseAmount = 0) {
     room.bbHasOption = false;
   }
 
-  // Advance turn to next ACTIVE player
-  room.currentTurnIdx = nextActingIndex(players, room.currentTurnIdx);
+  // Advance turn to next ACTIVE player (-1 means no one left to act, handled in checkRoundCompletion)
+  const nextIdx = nextActingIndex(players, room.currentTurnIdx);
+  room.currentTurnIdx = nextIdx >= 0 ? nextIdx : room.currentTurnIdx;
 
   return checkRoundCompletion(room);
 }
@@ -341,6 +342,10 @@ function checkRoundCompletion(room) {
     resetForNewStreet(room);
     dealCommunityCards(room, 3);
     room.status = 'FLOP';
+    // If everyone is all-in, keep running the board automatically
+    if (room.players.filter(p => p.status === 'ACTIVE').length === 0) {
+      return checkRoundCompletion(room);
+    }
     return { handOver: false };
   }
 
@@ -348,6 +353,9 @@ function checkRoundCompletion(room) {
     resetForNewStreet(room);
     dealCommunityCards(room, 1);
     room.status = 'TURN';
+    if (room.players.filter(p => p.status === 'ACTIVE').length === 0) {
+      return checkRoundCompletion(room);
+    }
     return { handOver: false };
   }
 
@@ -355,6 +363,9 @@ function checkRoundCompletion(room) {
     resetForNewStreet(room);
     dealCommunityCards(room, 1);
     room.status = 'RIVER';
+    if (room.players.filter(p => p.status === 'ACTIVE').length === 0) {
+      return checkRoundCompletion(room);
+    }
     return { handOver: false };
   }
 

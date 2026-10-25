@@ -228,6 +228,52 @@ console.log('\n── calculateSidePots ──');
   assert('Side pot only eligible for p2 and p3', sidePot.eligiblePlayerIds.length === 2);
 }
 
+// ─── All-in board runout (the stuck bug) ─────────────────────────────────────
+console.log('\n── All-in board runout ──');
+{
+  const room = makeRoom(2); // heads-up, easier to force all-in
+  startNewHand(room);
+
+  // Both players shove all-in preflop
+  const p1 = room.players[room.currentTurnIdx];
+  handlePlayerAction(room, p1.playerId, 'RAISE', 1000); // all-in
+
+  const p2 = room.players[room.currentTurnIdx];
+  const result = handlePlayerAction(room, p2.playerId, 'CALL'); // call all-in
+
+  assert('All-in runout: hand is over (showdown reached)',
+    result.handOver === true, `handOver=${result.handOver}`);
+  assert('All-in runout: has winners', result.winners?.length >= 1);
+  assert('All-in runout: 5 community cards dealt',
+    room.communityCards.length === 5, `communityCards=${room.communityCards.length}`);
+  assert('All-in runout: pot distributed (both players coins sum = 2000)',
+    room.players.reduce((s, p) => s + p.coins, 0) === 2000,
+    `total=${room.players.reduce((s, p) => s + p.coins, 0)}`);
+}
+
+// ─── All-in mid-street board runout ──────────────────────────────────────────
+console.log('\n── All-in mid-street ──');
+{
+  const room = makeRoom(3);
+  startNewHand(room);
+
+  // UTG calls, SB calls, BB checks → FLOP
+  handlePlayerAction(room, room.players[room.currentTurnIdx].playerId, 'CALL');
+  handlePlayerAction(room, room.players[room.currentTurnIdx].playerId, 'CALL');
+  handlePlayerAction(room, room.players[room.currentTurnIdx].playerId, 'CHECK');
+
+  assert('Mid-street setup: reached FLOP', room.status === 'FLOP', `status=${room.status}`);
+
+  // On flop: p1 raises all-in, p2 calls all-in, p3 calls all-in → all ALL_IN
+  handlePlayerAction(room, room.players[room.currentTurnIdx].playerId, 'RAISE', 1000);
+  handlePlayerAction(room, room.players[room.currentTurnIdx].playerId, 'CALL');
+  const result = handlePlayerAction(room, room.players[room.currentTurnIdx].playerId, 'CALL');
+
+  assert('Mid-street all-in: hand is over', result.handOver === true, `handOver=${result.handOver}`);
+  assert('Mid-street all-in: 5 community cards', room.communityCards.length === 5,
+    `communityCards=${room.communityCards.length}`);
+}
+
 // ─── Summary ─────────────────────────────────────────────────────────────────
 console.log(`\n── Results: ${passed} passed, ${failed} failed ──\n`);
 if (failed > 0) process.exit(1);

@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 @layer base {
+  html, body, #root {
+    @apply h-full overflow-hidden;
+    margin: 0;
+    padding: 0;
+  }
   body {
     @apply bg-gray-950 text-white antialiased;
   }
-}
-
-@layer utilities {
-  .card-red  { @apply text-red-500; }
-  .card-black { @apply text-gray-900; }
 }

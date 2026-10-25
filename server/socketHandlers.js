@@ -67,9 +67,10 @@ async function saveRoomSnapshot(room) {
  * The host will click "Deal Next Hand" which emits game:dealNext.
  */
 function notifyWaitingForDeal(io, room) {
+  const dealer = room.players[room.dealerIdx];
   io.to(room.roomCode).emit('game:waitingForDeal', {
-    hostId: room.hostId,
-    hostName: room.players.find(p => p.playerId === room.hostId)?.name ?? 'Host'
+    dealerId:   dealer?.playerId ?? room.hostId,
+    dealerName: dealer?.name ?? 'Dealer'
   });
 }
 
@@ -263,7 +264,8 @@ module.exports = function registerHandlers(io) {
     socket.on('game:dealNext', async ({ roomCode, playerId: pid } = {}) => {
       const room = rooms.get(roomCode?.toUpperCase());
       if (!room) return socket.emit('error:message', { message: 'Room not found' });
-      if (room.hostId !== pid) return socket.emit('error:message', { message: 'Only the host can deal the next hand' });
+      const dealer = room.players[room.dealerIdx];
+      if (dealer?.playerId !== pid) return socket.emit('error:message', { message: 'Only the dealer can deal the next hand' });
       if (room.status !== 'SHOWDOWN') return socket.emit('error:message', { message: 'Hand is still in progress' });
 
       const eligible = room.players.filter(p => p.status !== 'OUT' && p.coins > 0);

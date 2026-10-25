@@ -57,7 +57,7 @@ function PlayerSeat({ player, isDealer, isActive }) {
       }}>
         {isDealer && (
           <span style={{
-            position: 'absolute', top: -9, right: -9,
+            position: 'absolute', top: -12, right: -12,
             width: 20, height: 20, borderRadius: '50%',
             background: '#fff', color: '#111', fontSize: 9, fontWeight: 900,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -68,17 +68,17 @@ function PlayerSeat({ player, isDealer, isActive }) {
           position: 'absolute', top: 4, left: 6, width: 5, height: 5, borderRadius: '50%',
           background: player.isConnected ? '#4ade80' : '#6b7280',
         }} />
-        <div style={{ paddingLeft: 7, maxWidth: 82, overflow: 'hidden',
+        <div style={{ paddingLeft: 10, maxWidth: 120, overflow: 'hidden',
                       textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700 }}>
           {player.name}
         </div>
-        <div style={{ fontSize: 9, fontFamily: 'monospace', color: isActive ? '#444' : '#9ca3af' }}>
+        <div style={{ fontSize: 13, fontFamily: 'monospace', color: isActive ? '#444' : '#9ca3af' }}>
           {player.coins.toLocaleString()} 🪙
         </div>
-        {isAllIn  && <div style={{ fontSize: 8, fontWeight: 900, color: '#eab308', marginTop: 1 }}>ALL-IN</div>}
-        {isFolded && <div style={{ fontSize: 8, fontWeight: 900, color: '#f87171', marginTop: 1 }}>FOLDED</div>}
+        {isAllIn  && <div style={{ fontSize: 12, fontWeight: 900, color: '#eab308', marginTop: 1 }}>ALL-IN</div>}
+        {isFolded && <div style={{ fontSize: 12, fontWeight: 900, color: '#f87171', marginTop: 1 }}>FOLDED</div>}
         {player.currentBet > 0 && (
-          <div style={{ fontSize: 8, color: '#67e8f9', fontFamily: 'monospace' }}>
+          <div style={{ fontSize: 12, color: '#67e8f9', fontFamily: 'monospace' }}>
             {player.currentBet.toLocaleString()} bet
           </div>
         )}
@@ -365,8 +365,8 @@ export default function PokerTable({ roomState: initialState }) {
                   {me.currentBet.toLocaleString()} bet
                 </div>
               )}
-              {isAllIn  && <div style={{ fontSize: 8, fontWeight: 900, color: '#eab308', marginTop: 1 }}>ALL-IN</div>}
-              {isFolded && <div style={{ fontSize: 8, fontWeight: 900, color: '#f87171', marginTop: 1 }}>FOLDED</div>}
+              {isAllIn  && <div style={{ fontSize: 12, fontWeight: 900, color: '#eab308', marginTop: 1 }}>ALL-IN</div>}
+              {isFolded && <div style={{ fontSize: 12, fontWeight: 900, color: '#f87171', marginTop: 1 }}>FOLDED</div>}
             </div>
           </div>
         )}

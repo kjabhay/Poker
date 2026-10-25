@@ -15,9 +15,6 @@ const {
 // ─── In-memory room store ─────────────────────────────────────────────────────
 const rooms = new Map(); // roomCode → roomState
 
-// Track per-room next-hand timers so we can cancel on disconnect
-const handTimers = new Map(); // roomCode → setTimeout handle
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Generate a random 6-character uppercase alphanumeric room code. */
@@ -66,39 +63,14 @@ async function saveRoomSnapshot(room) {
 }
 
 /**
- * Schedule the next hand to start after a delay.
- * Cancels any existing timer for the room first.
+ * After a hand ends, notify all clients that the host needs to deal the next hand.
+ * The host will click "Deal Next Hand" which emits game:dealNext.
  */
-function scheduleNextHand(io, room, delayMs = 5000) {
-  if (handTimers.has(room.roomCode)) {
-    clearTimeout(handTimers.get(room.roomCode));
-  }
-  const timer = setTimeout(async () => {
-    handTimers.delete(room.roomCode);
-    const current = rooms.get(room.roomCode);
-    if (!current) return;
-
-    // Check enough players still have coins
-    const eligible = current.players.filter(p => p.status !== 'OUT' && p.coins > 0);
-    if (eligible.length < 2) {
-      io.to(room.roomCode).emit('game:over', {
-        message: 'Not enough players with coins to continue.',
-        players: current.players.map(p => ({ name: p.name, coins: p.coins }))
-      });
-      return;
-    }
-
-    try {
-      startNewHand(current);
-      broadcastRoomState(io, current);
-      emitHoleCards(io, current);
-      await saveRoomSnapshot(current);
-    } catch (err) {
-      io.to(room.roomCode).emit('error:message', { message: err.message });
-    }
-  }, delayMs);
-
-  handTimers.set(room.roomCode, timer);
+function notifyWaitingForDeal(io, room) {
+  io.to(room.roomCode).emit('game:waitingForDeal', {
+    hostId: room.hostId,
+    hostName: room.players.find(p => p.playerId === room.hostId)?.name ?? 'Host'
+  });
 }
 
 // ─── Main handler registration ────────────────────────────────────────────────
@@ -280,8 +252,34 @@ module.exports = function registerHandlers(io) {
           });
 
           await saveRoomSnapshot(room);
-          scheduleNextHand(io, room, 5000);
+          notifyWaitingForDeal(io, room);
         }
+      } catch (err) {
+        socket.emit('error:message', { message: err.message });
+      }
+    });
+
+    // ── game:dealNext ──────────────────────────────────────────────────────
+    socket.on('game:dealNext', async ({ roomCode, playerId: pid } = {}) => {
+      const room = rooms.get(roomCode?.toUpperCase());
+      if (!room) return socket.emit('error:message', { message: 'Room not found' });
+      if (room.hostId !== pid) return socket.emit('error:message', { message: 'Only the host can deal the next hand' });
+      if (room.status !== 'SHOWDOWN') return socket.emit('error:message', { message: 'Hand is still in progress' });
+
+      const eligible = room.players.filter(p => p.status !== 'OUT' && p.coins > 0);
+      if (eligible.length < 2) {
+        io.to(room.roomCode).emit('game:over', {
+          message: 'Not enough players with coins to continue.',
+          players: room.players.map(p => ({ name: p.name, coins: p.coins }))
+        });
+        return;
+      }
+
+      try {
+        startNewHand(room);
+        broadcastRoomState(io, room);
+        emitHoleCards(io, room);
+        await saveRoomSnapshot(room);
       } catch (err) {
         socket.emit('error:message', { message: err.message });
       }
@@ -329,7 +327,7 @@ module.exports = function registerHandlers(io) {
                     }))
                   });
                   saveRoomSnapshot(current);
-                  scheduleNextHand(io, current, 5000);
+                  notifyWaitingForDeal(io, current);
                 }
               } catch { /* player may have reconnected or hand ended */ }
             }, 15000); // 15s grace period before auto-fold

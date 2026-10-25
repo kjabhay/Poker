@@ -10,13 +10,13 @@ const MY_CARD_W        = '8vw';
 // Seat positions — seat 0 (me) rendered separately outside the table
 const SEAT_POSITIONS = [
   null,
-  { bottom: '-5%',  left: '74%',  transform: 'none' },
+  { bottom: '4%',   left: '74%',  transform: 'none' },
   { top:    '15%',  left: '91%',  transform: 'none' },
   { top:    '-10%', left: '74%',  transform: 'none' },
   { top:    '-18%', left: '50%',  transform: 'translateX(-50%)' },
   { top:    '-10%', right: '74%', transform: 'none' },
   { top:    '15%',  right: '91%', transform: 'none' },
-  { bottom: '-5%',  right: '74%', transform: 'none' },
+  { bottom: '4%',   right: '74%', transform: 'none' },
   { bottom: '14%',  left: '50%',  transform: 'translateX(-50%)' },
 ];
 

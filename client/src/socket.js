@@ -30,7 +30,7 @@ const URL = import.meta.env.DEV ? 'http://localhost:8000' : window.location.orig
 
 const socket = io(URL, {
   autoConnect: true,
-  reconnectionAttempts: 10,
+  reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
 });
 

@@ -101,44 +101,19 @@ function AceCard({ suit }) {
   );
 }
 
-const FACE_COLORS = {
-  J: { bg: 'linear-gradient(150deg,#fef08a,#f59e0b)', text: '#78350f' },
-  Q: { bg: 'linear-gradient(150deg,#fbcfe8,#ec4899)', text: '#831843' },
-  K: { bg: 'linear-gradient(150deg,#c7d2fe,#6366f1)', text: '#1e1b4b' },
-};
-
 function FaceCard({ rank, suit }) {
-  const sym   = SUIT_SYMBOL[suit];
-  const color = SUIT_COLOR[suit];
-  const label = RANK_LABEL[rank];
-  const fc    = FACE_COLORS[rank];
+  const suitName = { h: 'hearts', d: 'diamonds', c: 'clubs', s: 'spades' }[suit];
+  const extension = rank === 'K' && (suit === 'h' || suit === 's') ? 'png' : 'svg';
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative',
                   background: 'white', borderRadius: 'inherit', overflow: 'hidden' }}>
-      <Corner label={label} sym={sym} color={color} />
-      <Corner label={label} sym={sym} color={color} flip />
-      {/* Art panel */}
-      <div style={{
-        position: 'absolute', inset: '12% 9%',
-        background: fc.bg,
-        borderRadius: '8%',
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        gap: '4%',
-        boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.4)',
-        overflow: 'hidden',
-      }}>
-        {/* Inner border */}
-        <div style={{
-          position: 'absolute', inset: '4%',
-          border: `2px solid rgba(255,255,255,0.35)`,
-          borderRadius: '6%',
-        }} />
-        <span style={{ fontSize: '42%', fontWeight: 900, color: fc.text, lineHeight: 1, userSelect: 'none',
-                       textShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>{label}</span>
-        <span style={{ fontSize: '28%', color: fc.text, lineHeight: 1, opacity: 0.85, userSelect: 'none' }}>{sym}</span>
-      </div>
+      <img
+        src={`/cards/${rank}-${suitName}.${extension}`}
+        alt={`${RANK_LABEL[rank]} of ${suitName}`}
+        draggable="false"
+        style={{ display: 'block', width: '100%', height: '100%' }}
+      />
     </div>
   );
 }
@@ -190,7 +165,7 @@ export default function PlayingCard({ card, width = '13vw', faceDown = false }) 
     width,
     // Classic card ratio 2.5 : 3.5 = 1 : 1.4
     aspectRatio: '5 / 7',
-    borderRadius: `calc(${width} * 0.08)`,
+    borderRadius: '8%',
     flexShrink: 0,
     boxShadow: '2px 4px 14px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.4)',
     position: 'relative',

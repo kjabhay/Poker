@@ -35,12 +35,14 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ── Socket.IO handlers ────────────────────────────────────────────────────────
-require('./socketHandlers')(io);
+const registerHandlers = require('./socketHandlers');
+registerHandlers(io);
 
 // ── Start server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 8000;
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  await registerHandlers.restoreRooms();
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`🃏 Poker server running on http://0.0.0.0:${PORT}`);
   });

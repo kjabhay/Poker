@@ -9,6 +9,7 @@ const playerSchema = new mongoose.Schema({
   currentBet: { type: Number, default: 0 },
   totalHandBet: { type: Number, default: 0 },
   holeCards: { type: [String], default: [] },
+  leaveAfterHand: { type: Boolean, default: false },
   status: {
     type: String,
     enum: ['ACTIVE', 'FOLDED', 'ALL_IN', 'OUT'],
@@ -38,6 +39,7 @@ const roomSchema = new mongoose.Schema({
   currentHighestBet: { type: Number, default: 0 },
   minRaise: { type: Number, default: 20 },
   communityCards: { type: [String], default: [] },
+  deck: { type: [String], default: [] },
   players: { type: [playerSchema], default: [] },
   createdAt: { type: Date, default: Date.now }
 });

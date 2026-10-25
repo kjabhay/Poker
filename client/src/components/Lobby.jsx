@@ -58,18 +58,18 @@ export default function Lobby({ roomState }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-start p-4 pt-10">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-gray-950 to-gray-950 flex flex-col items-center justify-start p-4 pt-10">
 
       {/* Room code banner */}
       <div className="mb-8 text-center">
-        <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">Room Code</p>
+        <p className="text-gray-400 text-xs uppercase tracking-widest mb-2">Room Code</p>
         <div className="flex items-center gap-3">
           <span className="text-4xl font-extrabold font-mono tracking-widest text-gold">
             {roomState.roomCode}
           </span>
           <button
             onClick={copyCode}
-            className="text-xs px-3 py-1 rounded-lg bg-gray-700 hover:bg-gray-600
+            className="text-xs px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10
                        text-gray-300 transition"
           >
             {copied ? '✓ Copied' : 'Copy'}
@@ -78,18 +78,18 @@ export default function Lobby({ roomState }) {
         <p className="text-gray-500 text-xs mt-2">Share this code with friends to join</p>
       </div>
 
-      <div className="w-full max-w-2xl grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="w-full max-w-4xl grid grid-cols-1 gap-5 md:grid-cols-2">
 
         {/* Player list */}
-        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-4">
+        <div className="bg-white/[0.055] border border-white/10 rounded-3xl p-6 shadow-xl shadow-black/20 backdrop-blur">
+          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-widest mb-5">
             Players ({roomState.players.length}/9)
           </h2>
           <ul className="space-y-2">
             {roomState.players.map((p) => (
               <li
                 key={p.playerId}
-                className="flex items-center justify-between bg-gray-700/50 rounded-lg px-3 py-2"
+                className="flex items-center justify-between bg-white/[0.045] rounded-2xl px-4 py-3 border border-white/[0.06]"
               >
                 <div className="flex items-center gap-2">
                   <span
@@ -120,8 +120,8 @@ export default function Lobby({ roomState }) {
         </div>
 
         {/* Config panel (host only) or read-only view */}
-        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-4">
+        <div className="bg-white/[0.055] border border-white/10 rounded-3xl p-6 shadow-xl shadow-black/20 backdrop-blur">
+          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-widest mb-5">
             Game Settings {!isHost && <span className="text-xs normal-case text-gray-500">(host only)</span>}
           </h2>
 
@@ -135,8 +135,8 @@ export default function Lobby({ roomState }) {
                 onChange={e => isHost && updateConfig('startingCoins', e.target.value)}
                 disabled={!isHost}
                 min={100} max={1000000} step={100}
-                className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600
-                           text-white text-sm focus:outline-none focus:border-gold
+                className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-white/10
+                           text-white text-sm focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/20
                            disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
@@ -151,8 +151,8 @@ export default function Lobby({ roomState }) {
                   onChange={e => isHost && updateConfig('smallBlind', e.target.value)}
                   disabled={!isHost}
                   min={1} step={1}
-                  className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600
-                             text-white text-sm focus:outline-none focus:border-gold
+                  className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-white/10
+                             text-white text-sm focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/20
                              disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
@@ -164,8 +164,8 @@ export default function Lobby({ roomState }) {
                   onChange={e => isHost && updateConfig('bigBlind', e.target.value)}
                   disabled={!isHost}
                   min={2} step={1}
-                  className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600
-                             text-white text-sm focus:outline-none focus:border-gold
+                  className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-white/10
+                             text-white text-sm focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/20
                              disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
@@ -178,8 +178,8 @@ export default function Lobby({ roomState }) {
                 value={config.numDecks}
                 onChange={e => isHost && updateConfig('numDecks', e.target.value)}
                 disabled={!isHost}
-                className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600
-                           text-white text-sm focus:outline-none focus:border-gold
+                className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-white/10
+                           text-white text-sm focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/20
                            disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {[1, 2, 3, 4].map(n => (
@@ -197,8 +197,8 @@ export default function Lobby({ roomState }) {
             <button
               onClick={startGame}
               disabled={roomState.players.length < 2 || starting}
-              className="mt-6 w-full py-3 rounded-xl bg-gold text-gray-950 font-bold text-sm
-                         hover:brightness-110 active:scale-95 transition
+              className="mt-6 w-full py-3.5 rounded-2xl bg-gold text-gray-950 font-bold text-sm
+                         hover:brightness-110 active:scale-[0.98] transition shadow-lg shadow-yellow-950/20
                          disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {starting ? 'Starting…' : `Start Poker Game (${roomState.players.length} players)`}

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,7 +10,41 @@
     margin: 0;
     padding: 0;
   }
+
+  html {
+    font-family: 'Baloo 2', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  }
+
   body {
     @apply bg-gray-950 text-white antialiased;
+    font-family: 'Baloo 2', 'Trebuchet MS', 'Segoe UI', sans-serif;
+    letter-spacing: 0.01em;
+  }
+
+  button, input, select {
+    font: inherit;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: rgba(245, 197, 66, 0.3);
+    color: white;
+  }
+}
+
+@media (min-width: 640px) {
+  .poker-table-stage {
+    width: min(100%, 1400px, calc((100dvh - 250px) * 2 / 1.15)) !important;
+    max-height: calc(100dvh - 250px) !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .poker-table-stage {
+    width: min(100%, 1500px, calc((100dvh - 230px) * 2 / 1.15)) !important;
+    max-height: calc(100dvh - 230px) !important;
   }
 }

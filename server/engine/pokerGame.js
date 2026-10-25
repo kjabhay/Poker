@@ -39,6 +39,16 @@ function nextActingIndex(players, fromIdx) {
   return -1; // no active player found
 }
 
+function getNextDealerIndex(room) {
+  const players = room.players;
+  for (let offset = 1; offset <= players.length; offset++) {
+    const index = (room.dealerIdx + offset) % players.length;
+    const player = players[index];
+    if (player.status !== 'OUT' && !player.leaveAfterHand && player.coins > 0) return index;
+  }
+  return room.dealerIdx;
+}
+
 /** Deduct coins from a player, clamping to 0 (triggers all-in automatically). */
 function deductCoins(player, amount) {
   const actual = Math.min(amount, player.coins);
@@ -111,6 +121,10 @@ function dealCommunityCards(room, count) {
 function startNewHand(room) {
   const players = room.players;
 
+  players.forEach(p => {
+    if (p.leaveAfterHand) p.status = 'OUT';
+  });
+
   // Remove players who are out of coins
   players.forEach(p => {
     if (p.coins <= 0 && p.status !== 'OUT') p.status = 'OUT';
@@ -132,7 +146,7 @@ function startNewHand(room) {
   });
 
   // Rotate dealer to next eligible player
-  room.dealerIdx = nextActiveIndex(players, room.dealerIdx);
+  room.dealerIdx = getNextDealerIndex(room);
 
   // Blind positions
   const numActive = activePlayers.length;
@@ -459,6 +473,7 @@ function sanitizeStateForClient(room, viewerPlayerId) {
 
 module.exports = {
   startNewHand,
+  getNextDealerIndex,
   handlePlayerAction,
   checkRoundCompletion,
   sanitizeStateForClient,

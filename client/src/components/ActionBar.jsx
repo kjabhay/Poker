@@ -51,15 +51,35 @@ export default function ActionBar({ roomState }) {
     );
   }
 
-  // ── My turn: two compact rows ─────────────────────────────────────────────
+  // ── My turn: compact desktop controls and a touch-friendly mobile layout ──
   return (
-    <div className="px-3 py-2 space-y-1.5">
+    <div className="mx-2 mb-1 rounded-2xl border border-white/[0.08] bg-slate-950/55 px-2.5 py-2.5 shadow-lg shadow-black/20 backdrop-blur sm:mx-auto sm:mb-2 sm:w-full sm:max-w-5xl sm:rounded-3xl sm:border-white/10 sm:bg-slate-950/45 sm:px-5 sm:py-4 sm:shadow-2xl sm:shadow-black/25">
+      <div className="mb-2 flex items-center justify-between sm:hidden" role="status">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+          Your turn
+        </div>
+        <div className="flex items-center gap-3 text-[11px] font-semibold text-gray-400">
+          <span>Pot <span className="text-yellow-300">{roomState.pot.toLocaleString()} 🪙</span></span>
+          {!canCheck && <span>To call <span className="text-sky-300">{callAmount.toLocaleString()} 🪙</span></span>}
+        </div>
+      </div>
+      <div className="mb-3 hidden items-center justify-between border-b border-white/[0.08] pb-3 sm:flex">
+        <div className="flex items-center gap-2 text-sm font-bold text-white">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+          Your turn
+        </div>
+        <div className="flex items-center gap-5 text-xs font-semibold text-gray-400">
+          <span>Pot <span className="ml-1 text-yellow-300">{roomState.pot.toLocaleString()} 🪙</span></span>
+          {!canCheck && <span>To call <span className="ml-1 text-sky-300">{callAmount.toLocaleString()} 🪙</span></span>}
+        </div>
+      </div>
 
       {/* Raise controls row — only shown when raise is possible */}
       {canRaise && (
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-nowrap sm:items-center">
           {/* Quick presets */}
-          <div className="flex gap-1 shrink-0">
+          <div className="grid grid-cols-4 gap-1 sm:flex sm:w-auto sm:shrink-0">
             {[
               { label: 'Min',  value: minRaiseTo },
               { label: '½P',   value: Math.min(maxRaiseTo, Math.max(minRaiseTo, Math.round(roomState.pot / 2))) },
@@ -70,51 +90,56 @@ export default function ActionBar({ roomState }) {
               .map(p => (
                 <button key={p.label}
                   onClick={() => setRaiseAmount(p.value)}
-                  className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition
+                  className={`min-h-9 rounded-xl px-2 text-xs font-semibold transition sm:min-h-0 sm:flex-none sm:py-1 sm:text-[11px]
                     ${raiseAmount === p.value
-                      ? 'bg-yellow-400 text-gray-950'
-                      : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}>
+                      ? 'bg-yellow-400 text-gray-950 shadow-sm shadow-yellow-500/20'
+                      : 'border border-white/[0.08] bg-white/[0.06] text-gray-300 hover:bg-white/10'}`}>
                   {p.label}
                 </button>
               ))}
           </div>
 
           {/* Slider */}
-          <input type="range"
-            min={minRaiseTo} max={maxRaiseTo} step={bb}
-            value={raiseAmount}
-            onChange={e => setRaiseAmount(Number(e.target.value))}
-            className="flex-1 h-1.5 accent-yellow-400 cursor-pointer" />
+          <div className="flex min-w-0 items-center gap-3">
+            <input type="range"
+              min={minRaiseTo} max={maxRaiseTo} step={bb}
+              value={raiseAmount}
+              aria-label="Raise amount"
+              onChange={e => setRaiseAmount(Number(e.target.value))}
+              className="h-2 min-w-0 flex-1 accent-yellow-400 cursor-pointer sm:h-1.5" />
 
-          {/* Amount label */}
-          <span className={`text-xs font-mono font-bold w-20 text-right shrink-0
-                            ${isAllIn ? 'text-yellow-400' : 'text-white'}`}>
-            {isAllIn ? 'ALL-IN' : raiseAmount.toLocaleString() + ' 🪙'}
-          </span>
+            {/* Amount label */}
+            <span className={`w-auto shrink-0 text-right font-mono text-[11px] font-bold sm:w-20 sm:text-xs
+                              ${isAllIn ? 'text-yellow-400' : 'text-white'}`}>
+              {isAllIn ? 'ALL-IN' : raiseAmount.toLocaleString() + ' 🪙'}
+            </span>
+          </div>
         </div>
       )}
 
       {/* Action buttons row */}
-      <div className="flex gap-2">
+      <div className={`mt-2 grid ${canRaise ? 'grid-cols-3' : 'grid-cols-2'} gap-2 sm:mt-1.5 sm:flex sm:gap-2`}>
         <button onClick={() => emit('FOLD')}
-          className="flex-1 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700
-                     text-red-400 font-bold text-sm active:scale-95 transition border border-gray-700">
+          className="min-h-12 min-w-0 rounded-2xl border border-white/10 bg-white/[0.06] px-1 py-2 text-xs font-bold text-red-300 transition hover:bg-red-400/10 active:scale-[0.98] sm:min-h-0 sm:flex-1 sm:px-2 sm:py-3 sm:text-sm">
           Fold
         </button>
 
         <button onClick={() => emit(canCheck ? 'CHECK' : 'CALL')}
-          className="flex-1 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-600
-                     text-white font-bold text-sm active:scale-95 transition">
-          {canCheck ? 'Check' : `Call ${callAmount.toLocaleString()} 🪙`}
+          className="min-h-12 min-w-0 rounded-2xl bg-sky-500 px-1 py-1.5 text-xs font-bold text-white shadow-lg shadow-sky-950/30 transition hover:bg-sky-400 active:scale-[0.98] sm:min-h-0 sm:flex-1 sm:px-2 sm:py-3 sm:text-sm">
+          <span className="block">{canCheck ? 'Check' : 'Call'}</span>
+          {!canCheck && <span className="block text-[10px] font-semibold text-sky-100 sm:hidden">{callAmount.toLocaleString()} 🪙</span>}
+          {!canCheck && <span className="hidden sm:inline"> {callAmount.toLocaleString()} 🪙</span>}
         </button>
 
         {canRaise && (
           <button onClick={() => emit('RAISE', raiseAmount)}
-            className={`flex-1 py-2.5 rounded-xl font-bold text-sm active:scale-95 transition
+            className={`min-h-12 min-w-0 rounded-2xl px-1 py-1.5 text-xs font-bold transition active:scale-[0.98] sm:min-h-0 sm:flex-1 sm:px-2 sm:py-3 sm:text-sm
               ${isAllIn
                 ? 'bg-yellow-400 hover:brightness-110 text-gray-950'
                 : 'bg-green-700 hover:bg-green-600 text-white'}`}>
-            {isAllIn ? '🚀 All-In' : `Raise ${raiseAmount.toLocaleString()}`}
+            {isAllIn
+              ? '🚀 All-In'
+              : <><span className="block">Raise</span><span className="block text-[10px] font-semibold opacity-80 sm:hidden">{raiseAmount.toLocaleString()} 🪙</span><span className="hidden sm:inline"> {raiseAmount.toLocaleString()}</span></>}
           </button>
         )}
       </div>

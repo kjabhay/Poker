@@ -3,7 +3,7 @@
  * Run with: node server/engine/test-pokerGame.js
  */
 
-const { startNewHand, handlePlayerAction, sanitizeStateForClient, calculateSidePots } = require('./pokerGame');
+const { startNewHand, getNextDealerIndex, handlePlayerAction, sanitizeStateForClient, calculateSidePots } = require('./pokerGame');
 
 let passed = 0;
 let failed = 0;
@@ -71,6 +71,33 @@ console.log('\n── startNewHand ──');
   assert('SB player has 990 coins', room.players.some(p => p.coins === 990));
   assert('BB player has 980 coins', room.players.some(p => p.coins === 980));
   assert('currentHighestBet = bigBlind (20)', room.currentHighestBet === 20, `bet=${room.currentHighestBet}`);
+}
+
+console.log('\n── next hand dealer ──');
+{
+  const room = makeRoom(4);
+  room.dealerIdx = 1;
+  assert('Next dealer advances clockwise from current dealer', getNextDealerIndex(room) === 2);
+
+  room.players[2].coins = 0;
+  assert('Next dealer skips a player with no chips', getNextDealerIndex(room) === 3);
+
+  room.players[2].coins = 1000;
+  room.players[2].status = 'OUT';
+  assert('Next dealer skips an OUT player', getNextDealerIndex(room) === 3);
+
+  room.players[2].status = 'ACTIVE';
+  room.players[2].leaveAfterHand = true;
+  assert('Next dealer skips a player who is leaving after the hand', getNextDealerIndex(room) === 3);
+}
+
+console.log('\n── leaving between hands ──');
+{
+  const room = makeRoom(3);
+  room.players[1].leaveAfterHand = true;
+  startNewHand(room);
+  assert('Player who quit is out before the next hand starts', room.players[1].status === 'OUT');
+  assert('Next hand dealer skips the player who quit', room.dealerIdx !== 1);
 }
 
 // ─── Heads-up (2 player) blind rules ─────────────────────────────────────────

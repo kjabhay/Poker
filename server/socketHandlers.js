@@ -8,12 +8,15 @@
 const { Room } = require('./db');
 const {
   startNewHand,
+  getNextDealerIndex,
   handlePlayerAction,
+  checkRoundCompletion,
   sanitizeStateForClient
 } = require('./engine/pokerGame');
 
 // ─── In-memory room store ─────────────────────────────────────────────────────
 const rooms = new Map(); // roomCode → roomState
+const roomSaveQueues = new Map();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,24 +53,47 @@ function emitHoleCards(io, room) {
 
 /** Persist a lightweight snapshot of the room to MongoDB. */
 async function saveRoomSnapshot(room) {
-  try {
-    const { deck, ...snapshot } = room; // never store the live deck
-    await Room.findOneAndUpdate(
-      { roomCode: room.roomCode },
-      { $set: snapshot },
-      { upsert: true, new: true }
-    );
-  } catch (err) {
-    console.error(`[DB] snapshot failed for ${room.roomCode}:`, err.message);
-  }
+  const roomCode = room.roomCode;
+  const snapshot = JSON.parse(JSON.stringify(room));
+  const previousSave = roomSaveQueues.get(roomCode) ?? Promise.resolve();
+  const currentSave = previousSave.then(async () => {
+    try {
+      await Room.findOneAndUpdate(
+        { roomCode },
+        { $set: snapshot },
+        { upsert: true, new: true }
+      );
+    } catch (err) {
+      console.error(`[DB] snapshot failed for ${roomCode}:`, err.message);
+    }
+  }).finally(() => {
+    if (roomSaveQueues.get(roomCode) === currentSave) roomSaveQueues.delete(roomCode);
+  });
+  roomSaveQueues.set(roomCode, currentSave);
+  return currentSave;
+}
+
+function emitShowdown(io, room, result) {
+  io.to(room.roomCode).emit('game:showdown', {
+    winners: result.winners,
+    winningHandDescription: result.winningHandDescription,
+    handDescriptions: result.handDescriptions,
+    sidePots: result.sidePots,
+    players: room.players.map(player => ({
+      playerId: player.playerId,
+      name: player.name,
+      coins: player.coins,
+      holeCards: player.status !== 'FOLDED' ? player.holeCards : [],
+      status: player.status,
+    })),
+  });
 }
 
 /**
- * After a hand ends, notify all clients that the host needs to deal the next hand.
- * The host will click "Deal Next Hand" which emits game:dealNext.
+ * After a hand ends, notify the dealer for the upcoming hand.
  */
 function notifyWaitingForDeal(io, room) {
-  const dealer = room.players[room.dealerIdx];
+  const dealer = room.players[getNextDealerIndex(room)];
   io.to(room.roomCode).emit('game:waitingForDeal', {
     dealerId:   dealer?.playerId ?? room.hostId,
     dealerName: dealer?.name ?? 'Dealer'
@@ -76,7 +102,27 @@ function notifyWaitingForDeal(io, room) {
 
 // ─── Main handler registration ────────────────────────────────────────────────
 
-module.exports = function registerHandlers(io) {
+async function restoreRooms() {
+  const savedRooms = await Room.find({}).lean();
+  for (const savedRoom of savedRooms) {
+    const room = { ...savedRoom, deck: savedRoom.deck ?? [] };
+    delete room._id;
+    delete room.__v;
+    if (room.status !== 'LOBBY' && room.status !== 'SHOWDOWN' && room.deck.length === 0) {
+      console.warn(`[Room] skipped unsafe mid-hand restore for ${room.roomCode}: no saved deck`);
+      continue;
+    }
+    room.players = room.players.map(player => ({
+      ...player,
+      socketId: null,
+      isConnected: false,
+    }));
+    rooms.set(room.roomCode, room);
+  }
+  console.log(`[Room] restored ${rooms.size} saved room(s)`);
+}
+
+function registerHandlers(io) {
 
   io.on('connection', (socket) => {
     console.log(`[Socket] connected: ${socket.id}`);
@@ -132,8 +178,9 @@ module.exports = function registerHandlers(io) {
     });
 
     // ── room:join ──────────────────────────────────────────────────────────
-    socket.on('room:join', async ({ roomCode, name, playerId } = {}) => {
+    socket.on('room:join', async ({ roomCode, name, playerId, resume = false } = {}) => {
       if (!roomCode || !name || !playerId) {
+        if (resume) socket.emit('room:resumeFailed');
         return socket.emit('error:message', { message: 'roomCode, name, and playerId are required' });
       }
 
@@ -141,21 +188,39 @@ module.exports = function registerHandlers(io) {
       const room = rooms.get(code);
 
       if (!room) {
+        if (resume) socket.emit('room:resumeFailed');
         return socket.emit('error:message', { message: `Room "${code}" not found` });
       }
-
-      socket.join(code);
 
       // Reconnection: player already has a seat
       const existing = room.players.find(p => p.playerId === playerId);
       if (existing) {
+        socket.join(code);
         existing.socketId = socket.id;
         existing.isConnected = true;
         broadcastRoomState(io, room);
+        await saveRoomSnapshot(room);
 
         // Re-send hole cards if a hand is in progress
         if (room.status !== 'LOBBY' && existing.holeCards.length > 0) {
           socket.emit('player:holeCards', { holeCards: existing.holeCards });
+        }
+        if (room.status === 'SHOWDOWN') {
+          const eligible = room.players.filter(player =>
+            player.status !== 'OUT' && !player.leaveAfterHand && player.coins > 0
+          );
+          if (eligible.length < 2) {
+            socket.emit('game:over', {
+              message: 'Not enough players with coins to continue.',
+              players: room.players.map(player => ({ name: player.name, coins: player.coins })),
+            });
+          } else {
+            const dealer = room.players[getNextDealerIndex(room)];
+            socket.emit('game:waitingForDeal', {
+              dealerId: dealer?.playerId ?? room.hostId,
+              dealerName: dealer?.name ?? 'Dealer',
+            });
+          }
         }
         console.log(`[Room] ${playerId} reconnected to ${code}`);
         return;
@@ -163,13 +228,16 @@ module.exports = function registerHandlers(io) {
 
       // New player joining
       if (room.status !== 'LOBBY') {
+        if (resume) socket.emit('room:resumeFailed');
         return socket.emit('error:message', { message: 'Game already in progress — cannot join mid-hand' });
       }
 
       if (room.players.length >= 9) {
+        if (resume) socket.emit('room:resumeFailed');
         return socket.emit('error:message', { message: 'Room is full (max 9 players)' });
       }
 
+      socket.join(code);
       room.players.push({
         playerId,
         socketId: socket.id,
@@ -179,11 +247,13 @@ module.exports = function registerHandlers(io) {
         currentBet: 0,
         totalHandBet: 0,
         holeCards: [],
+        leaveAfterHand: false,
         status: 'ACTIVE',
         isConnected: true
       });
 
       broadcastRoomState(io, room);
+      await saveRoomSnapshot(room);
       console.log(`[Room] ${name} joined ${code} (${room.players.length} players)`);
     });
 
@@ -203,6 +273,7 @@ module.exports = function registerHandlers(io) {
       room.players.forEach(p => { p.coins = room.config.startingCoins; });
 
       broadcastRoomState(io, room);
+      saveRoomSnapshot(room);
     });
 
     // ── game:start ─────────────────────────────────────────────────────────
@@ -237,23 +308,11 @@ module.exports = function registerHandlers(io) {
         broadcastRoomState(io, room);
 
         if (result.handOver) {
-          // Emit showdown result to the whole room
-          io.to(room.roomCode).emit('game:showdown', {
-            winners: result.winners,
-            winningHandDescription: result.winningHandDescription,
-            handDescriptions: result.handDescriptions,
-            sidePots: result.sidePots,
-            players: room.players.map(p => ({
-              playerId: p.playerId,
-              name: p.name,
-              coins: p.coins,
-              holeCards: p.status !== 'FOLDED' ? p.holeCards : [],
-              status: p.status
-            }))
-          });
-
+          emitShowdown(io, room, result);
           await saveRoomSnapshot(room);
           notifyWaitingForDeal(io, room);
+        } else {
+          await saveRoomSnapshot(room);
         }
       } catch (err) {
         socket.emit('error:message', { message: err.message });
@@ -264,11 +323,11 @@ module.exports = function registerHandlers(io) {
     socket.on('game:dealNext', async ({ roomCode, playerId: pid } = {}) => {
       const room = rooms.get(roomCode?.toUpperCase());
       if (!room) return socket.emit('error:message', { message: 'Room not found' });
-      const dealer = room.players[room.dealerIdx];
+      const dealer = room.players[getNextDealerIndex(room)];
       if (dealer?.playerId !== pid) return socket.emit('error:message', { message: 'Only the dealer can deal the next hand' });
       if (room.status !== 'SHOWDOWN') return socket.emit('error:message', { message: 'Hand is still in progress' });
 
-      const eligible = room.players.filter(p => p.status !== 'OUT' && p.coins > 0);
+      const eligible = room.players.filter(p => p.status !== 'OUT' && !p.leaveAfterHand && p.coins > 0);
       if (eligible.length < 2) {
         io.to(room.roomCode).emit('game:over', {
           message: 'Not enough players with coins to continue.',
@@ -287,6 +346,53 @@ module.exports = function registerHandlers(io) {
       }
     });
 
+    socket.on('room:leave', async ({ roomCode, playerId: pid } = {}) => {
+      const room = rooms.get(roomCode?.toUpperCase());
+      if (!room) return socket.emit('error:message', { message: 'Room not found' });
+      const player = room.players.find(candidate => candidate.playerId === pid);
+      if (!player || player.socketId !== socket.id) {
+        return socket.emit('error:message', { message: 'You are not seated in this room' });
+      }
+      if (room.status === 'LOBBY') {
+        return socket.emit('error:message', { message: 'Leave the lobby before the game starts' });
+      }
+      const wasAlreadyAtShowdown = room.status === 'SHOWDOWN';
+
+      if (room.status === 'SHOWDOWN') {
+        player.status = 'OUT';
+      } else {
+        player.leaveAfterHand = true;
+        if (player.status === 'ACTIVE') {
+          player.status = 'FOLDED';
+          player.hasActed = true;
+          if (room.players[room.currentTurnIdx]?.playerId === pid) {
+            for (let offset = 1; offset <= room.players.length; offset++) {
+              const index = (room.currentTurnIdx + offset) % room.players.length;
+              if (room.players[index].status === 'ACTIVE') {
+                room.currentTurnIdx = index;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (room.status !== 'SHOWDOWN') {
+        const result = checkRoundCompletion(room);
+        if (result.handOver) {
+          emitShowdown(io, room, result);
+          notifyWaitingForDeal(io, room);
+        }
+      }
+
+      player.socketId = null;
+      player.isConnected = false;
+      await saveRoomSnapshot(room);
+      if (!wasAlreadyAtShowdown) broadcastRoomState(io, room);
+      socket.emit('room:left', { roomCode: room.roomCode });
+      socket.leave(room.roomCode);
+    });
+
     // ── disconnect ─────────────────────────────────────────────────────────
     socket.on('disconnect', () => {
       console.log(`[Socket] disconnected: ${socket.id}`);
@@ -297,6 +403,7 @@ module.exports = function registerHandlers(io) {
         if (player) {
           player.isConnected = false;
           broadcastRoomState(io, room);
+          saveRoomSnapshot(room);
 
           // If it was their turn, auto-fold after a short grace period
           if (
@@ -315,19 +422,7 @@ module.exports = function registerHandlers(io) {
                 broadcastRoomState(io, current);
 
                 if (result.handOver) {
-                  io.to(current.roomCode).emit('game:showdown', {
-                    winners: result.winners,
-                    winningHandDescription: result.winningHandDescription,
-                    handDescriptions: result.handDescriptions,
-                    sidePots: result.sidePots,
-                    players: current.players.map(pl => ({
-                      playerId: pl.playerId,
-                      name: pl.name,
-                      coins: pl.coins,
-                      holeCards: pl.status !== 'FOLDED' ? pl.holeCards : [],
-                      status: pl.status
-                    }))
-                  });
+                  emitShowdown(io, current, result);
                   saveRoomSnapshot(current);
                   notifyWaitingForDeal(io, current);
                 }
@@ -339,4 +434,7 @@ module.exports = function registerHandlers(io) {
       }
     });
   });
-};
+}
+
+module.exports = registerHandlers;
+module.exports.restoreRooms = restoreRooms;

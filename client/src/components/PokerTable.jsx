@@ -305,8 +305,8 @@ export default function PokerTable({ roomState: initialState }) {
         </div>
       </div>
 
-      {/* Bottom — my cards + controls, no visible dividing row */}
-      <div className="shrink-0 bg-gray-900/90 border-t border-gray-800">
+      {/* Bottom — my cards + controls */}
+      <div className="shrink-0">
 
         {/* My cards + nameplate — no background, no border, floats naturally */}
         {me && (

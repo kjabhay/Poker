@@ -11,8 +11,9 @@ const OPPONENT_CARD_W  = '5.5vw';
 const MY_CARD_W        = '9vw';
 
 // ─── Seat positions (% of wrapper) ───────────────────────────────────────────
+// Seat 0 (local player) is NOT rendered inside the table — handled separately below
 const SEAT_POSITIONS = [
-  { bottom: '-18%', left: '50%',  transform: 'translateX(-50%)' }, // 0 — you, bottom
+  null,                                                              // 0 — rendered outside
   { bottom: '-5%',  left: '74%',  transform: 'none' },              // 1
   { top:    '15%',  left: '91%',  transform: 'none' },              // 2
   { top:    '-10%', left: '74%',  transform: 'none' },              // 3
@@ -320,13 +321,89 @@ export default function PokerTable({ roomState: initialState }) {
         </div>
       </div>
 
-      {/* Bottom controls */}
+      {/* Bottom: my seat + controls */}
       <div className="shrink-0 bg-gray-900/90 border-t border-gray-800">
+
+        {/* My cards + nameplate — always visible, never overlapped */}
+        {(() => {
+          const me = roomState.players.find(p => p.playerId === playerId);
+          if (!me) return null;
+          const isFolded = me.status === 'FOLDED';
+          const isAllIn  = me.status === 'ALL_IN';
+          const isActive = roomState.players[roomState.currentTurnIdx]?.playerId === playerId
+                           && roomState.status !== 'SHOWDOWN';
+          return (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 12, padding: '6px 16px',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              opacity: isFolded || me.status === 'OUT' ? 0.4 : 1,
+            }}>
+              {/* Hole cards */}
+              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                {me.holeCards?.length > 0
+                  ? me.holeCards.map((c, i) => (
+                      <div key={i} style={{
+                        transform: `rotate(${i === 0 ? -5 : 5}deg)`,
+                        marginRight: i === 0 ? `calc(${MY_CARD_W} * -0.22)` : 0,
+                        zIndex: i,
+                      }}>
+                        <PlayingCard card={c} width={MY_CARD_W} />
+                      </div>
+                    ))
+                  : null
+                }
+              </div>
+
+              {/* Name plate */}
+              <div style={{
+                position: 'relative', padding: '5px 10px', borderRadius: 12,
+                minWidth: 80, textAlign: 'center', fontSize: 12, fontWeight: 600,
+                background:  isActive ? '#facc15' : '#172554',
+                border:      isActive ? 'none' : '1px solid #3b82f6',
+                color:       isActive ? '#111' : '#fff',
+                boxShadow:   isActive ? '0 0 14px rgba(250,204,21,0.45)' : 'none',
+              }}>
+                {/* Dealer chip */}
+                {rotatedDealerIdx === 0 && (
+                  <span style={{
+                    position: 'absolute', top: -10, right: -10,
+                    width: 22, height: 22, borderRadius: '50%',
+                    background: '#fff', color: '#111', fontSize: 10, fontWeight: 900,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: '2px solid #d1d5db', boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                  }}>D</span>
+                )}
+                <span style={{
+                  position: 'absolute', top: 5, left: 7, width: 6, height: 6,
+                  borderRadius: '50%', background: me.isConnected ? '#4ade80' : '#6b7280',
+                }} />
+                <div style={{ paddingLeft: 8, maxWidth: 100, overflow: 'hidden',
+                              textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700 }}>
+                  {me.name} ★
+                </div>
+                <div style={{ fontSize: 10, fontFamily: 'monospace',
+                              color: isActive ? '#555' : '#9ca3af' }}>
+                  {me.coins.toLocaleString()} 🪙
+                </div>
+                {me.currentBet > 0 && (
+                  <div style={{ fontSize: 9, color: '#67e8f9', fontFamily: 'monospace' }}>
+                    {me.currentBet.toLocaleString()} bet
+                  </div>
+                )}
+                {isAllIn  && <div style={{ fontSize: 9, fontWeight: 900, color: '#eab308', marginTop: 2 }}>ALL-IN</div>}
+                {isFolded && <div style={{ fontSize: 9, fontWeight: 900, color: '#f87171', marginTop: 2 }}>FOLDED</div>}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Action controls */}
         {waitingForDeal
           ? <DealNextButton roomCode={roomState.roomCode} waitingForDeal={waitingForDeal} />
           : showActionBar
             ? <ActionBar roomState={roomState} />
-            : <div className="h-14" />}
+            : <div className="h-10" />}
       </div>
     </div>
   );

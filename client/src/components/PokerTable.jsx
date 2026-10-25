@@ -175,7 +175,7 @@ export default function PokerTable({ roomState: initialState }) {
       }
     }
     function onShowdown(data)    { setShowdown(data); }
-    function onWaitForDeal(data) { setWaitingForDeal(data); setShowdown(null); }
+    function onWaitForDeal(data) { setWaitingForDeal(data); } // keep showdown visible until new hand
     function onGameOver(data)    { setGameOver(data); }
     function onHoleCards({ holeCards }) {
       setRoomState(prev => prev

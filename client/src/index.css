@@ -37,14 +37,12 @@
 
 @media (min-width: 640px) {
   .poker-table-stage {
-    width: min(100%, 1400px, calc((100dvh - 250px) * 2 / 1.15)) !important;
-    max-height: calc(100dvh - 250px) !important;
+    width: min(100%, 1400px, calc((100dvh - 330px) * 2 / 1.15)) !important;
   }
 }
 
 @media (min-width: 1280px) {
   .poker-table-stage {
-    width: min(100%, 1500px, calc((100dvh - 230px) * 2 / 1.15)) !important;
-    max-height: calc(100dvh - 230px) !important;
+    width: min(100%, 1500px, calc((100dvh - 310px) * 2 / 1.15)) !important;
   }
 }

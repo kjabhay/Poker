@@ -280,9 +280,9 @@ export default function PokerTable({ roomState: initialState, onBackToLobby }) {
       </div>
 
       {/* Table */}
-      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden"
-           style={{ padding: '0.5vh 2vw' }}>
-        <div className="poker-table-stage" style={{ position: 'relative', width: '100%', maxWidth: 1400, maxHeight: '100%', aspectRatio: '2 / 1.15' }}>
+      <div className="poker-table-scroll flex-1 min-h-0 overflow-x-hidden overflow-y-auto"
+           style={{ padding: 'max(7vh, 42px) 2vw 5vh' }}>
+        <div className="poker-table-stage mx-auto" style={{ position: 'relative', width: '100%', maxWidth: 1400, aspectRatio: '2 / 1.15' }}>
 
           {/* Felt oval */}
           <div style={{

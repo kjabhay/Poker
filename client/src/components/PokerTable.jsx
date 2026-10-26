@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import socket, { playerId } from '../socket';
 import ActionBar from './ActionBar';
 import PlayingCard from './PlayingCard';
@@ -159,6 +159,7 @@ export default function PokerTable({ roomState: initialState, onBackToLobby }) {
   const [showdown,       setShowdown]       = useState(null);
   const [waitingForDeal, setWaitingForDeal] = useState(null);
   const [gameOver,       setGameOver]       = useState(null);
+  const gameOverTimer = useRef(null);
 
   useEffect(() => {
     function onState(state) {
@@ -167,6 +168,8 @@ export default function PokerTable({ roomState: initialState, onBackToLobby }) {
       if (state.status === 'PREFLOP') {
         setShowdown(null);
         setWaitingForDeal(null);
+        setGameOver(null);
+        clearTimeout(gameOverTimer.current);
       } else if (state.status === 'SHOWDOWN') {
         const nextDealer = state.players.find((player, index) => {
           const distance = (index - state.dealerIdx + state.players.length) % state.players.length;
@@ -177,7 +180,18 @@ export default function PokerTable({ roomState: initialState, onBackToLobby }) {
           : null);
       }
     }
-    function onShowdown(data)    { setShowdown(data); }
+    function onShowdown(data) {
+      setShowdown(data);
+      if (data.gameOver) {
+        clearTimeout(gameOverTimer.current);
+        gameOverTimer.current = setTimeout(() => {
+          setGameOver({
+            message: 'Not enough players with chips to continue.',
+            players: data.players.map(({ name, coins }) => ({ name, coins })),
+          });
+        }, 3500);
+      }
+    }
     function onWaitForDeal(data) { setWaitingForDeal(data); } // keep showdown visible until new hand
     function onGameOver(data)    { setGameOver(data); }
     function onHoleCards({ holeCards }) {
@@ -196,25 +210,17 @@ export default function PokerTable({ roomState: initialState, onBackToLobby }) {
       socket.off('game:waitingForDeal', onWaitForDeal);
       socket.off('game:over',           onGameOver);
       socket.off('player:holeCards',    onHoleCards);
+      clearTimeout(gameOverTimer.current);
     };
   }, []);
 
   useEffect(() => { setRoomState(initialState); }, [initialState]);
 
   if (!roomState) return null;
-  const eligiblePlayers = roomState.players.filter(player =>
-    player.status !== 'OUT' && !player.leaveAfterHand && player.coins > 0
-  );
-  const resumedGameOver = roomState.status === 'SHOWDOWN' && eligiblePlayers.length < 2
-    ? {
-        message: 'Not enough players with coins to continue.',
-        players: roomState.players.map(({ name, coins }) => ({ name, coins })),
-      }
-    : null;
-  if (gameOver || resumedGameOver) {
+  if (gameOver) {
     return (
       <GameOverScreen
-        gameOver={gameOver ?? resumedGameOver}
+        gameOver={gameOver}
         onBackToLobby={onBackToLobby}
       />
     );

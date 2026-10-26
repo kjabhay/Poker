@@ -120,6 +120,7 @@ function dealCommunityCards(room, count) {
  */
 function startNewHand(room) {
   const players = room.players;
+  room.lastShowdown = null;
 
   players.forEach(p => {
     if (p.leaveAfterHand) p.status = 'OUT';

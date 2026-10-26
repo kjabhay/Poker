@@ -74,11 +74,15 @@ async function saveRoomSnapshot(room) {
 }
 
 function emitShowdown(io, room, result) {
-  io.to(room.roomCode).emit('game:showdown', {
+  const eligiblePlayers = room.players.filter(player =>
+    player.status !== 'OUT' && !player.leaveAfterHand && player.coins > 0
+  );
+  room.lastShowdown = {
     winners: result.winners,
     winningHandDescription: result.winningHandDescription,
     handDescriptions: result.handDescriptions,
     sidePots: result.sidePots,
+    gameOver: eligiblePlayers.length < 2,
     players: room.players.map(player => ({
       playerId: player.playerId,
       name: player.name,
@@ -86,7 +90,8 @@ function emitShowdown(io, room, result) {
       holeCards: player.status !== 'FOLDED' ? player.holeCards : [],
       status: player.status,
     })),
-  });
+  };
+  io.to(room.roomCode).emit('game:showdown', room.lastShowdown);
 }
 
 /**
@@ -154,6 +159,7 @@ function registerHandlers(io) {
         minRaise: Number(config.bigBlind) || 20,
         communityCards: [],
         deck: [],
+        lastShowdown: null,
         players: [{
           playerId,
           socketId: socket.id,
@@ -209,12 +215,13 @@ function registerHandlers(io) {
           const eligible = room.players.filter(player =>
             player.status !== 'OUT' && !player.leaveAfterHand && player.coins > 0
           );
-          if (eligible.length < 2) {
-            socket.emit('game:over', {
-              message: 'Not enough players with coins to continue.',
-              players: room.players.map(player => ({ name: player.name, coins: player.coins })),
+          if (room.lastShowdown) {
+            socket.emit('game:showdown', {
+              ...room.lastShowdown,
+              gameOver: eligible.length < 2,
             });
-          } else {
+          }
+          if (eligible.length >= 2) {
             const dealer = room.players[getNextDealerIndex(room)];
             socket.emit('game:waitingForDeal', {
               dealerId: dealer?.playerId ?? room.hostId,
@@ -360,6 +367,22 @@ function registerHandlers(io) {
 
       if (room.status === 'SHOWDOWN') {
         player.status = 'OUT';
+        if (room.lastShowdown) {
+          room.lastShowdown = {
+            ...room.lastShowdown,
+            gameOver: room.players.filter(candidate =>
+              candidate.status !== 'OUT' && !candidate.leaveAfterHand && candidate.coins > 0
+            ).length < 2,
+            players: room.players.map(candidate => ({
+              playerId: candidate.playerId,
+              name: candidate.name,
+              coins: candidate.coins,
+              holeCards: candidate.status !== 'FOLDED' ? candidate.holeCards : [],
+              status: candidate.status,
+            })),
+          };
+          io.to(room.roomCode).emit('game:showdown', room.lastShowdown);
+        }
       } else {
         player.leaveAfterHand = true;
         if (player.status === 'ACTIVE') {

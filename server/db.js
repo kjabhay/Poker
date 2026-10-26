@@ -40,6 +40,7 @@ const roomSchema = new mongoose.Schema({
   minRaise: { type: Number, default: 20 },
   communityCards: { type: [String], default: [] },
   deck: { type: [String], default: [] },
+  lastShowdown: { type: mongoose.Schema.Types.Mixed, default: null },
   players: { type: [playerSchema], default: [] },
   createdAt: { type: Date, default: Date.now }
 });

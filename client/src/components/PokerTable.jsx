@@ -189,7 +189,7 @@ export default function PokerTable({ roomState: initialState, onBackToLobby }) {
             message: 'Not enough players with chips to continue.',
             players: data.players.map(({ name, coins }) => ({ name, coins })),
           });
-        }, 3500);
+        }, 10000);
       }
     }
     function onWaitForDeal(data) { setWaitingForDeal(data); } // keep showdown visible until new hand

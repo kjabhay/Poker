@@ -14,14 +14,14 @@ const { evaluateShowdown } = require('./evaluator');
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Return the next seat index (wrapping) that has an ACTIVE or ALL_IN player
- * with coins > 0 (or is already ALL_IN). Used for dealer rotation.
+ * Return the next seat index (wrapping) that can participate in the hand.
  */
 function nextActiveIndex(players, fromIdx) {
   const n = players.length;
   for (let i = 1; i <= n; i++) {
     const idx = (fromIdx + i) % n;
-    if (players[idx].status !== 'OUT' && players[idx].coins > 0) return idx;
+    const player = players[idx];
+    if (player.status !== 'OUT' && (player.coins > 0 || player.status === 'ALL_IN')) return idx;
   }
   return fromIdx; // fallback (shouldn't happen with >= 2 players)
 }
@@ -68,7 +68,7 @@ function deductCoins(player, amount) {
 function calculateSidePots(players) {
   // Only consider players who put money in the pot this hand
   const contributors = players
-    .filter(p => p.totalHandBet > 0)
+    .filter(p => p.status !== 'OUT' && p.totalHandBet > 0)
     .map(p => ({ playerId: p.playerId, totalHandBet: p.totalHandBet, status: p.status }))
     .sort((a, b) => a.totalHandBet - b.totalHandBet);
 
@@ -136,13 +136,14 @@ function startNewHand(room) {
     throw new Error('Not enough players with coins to start a hand');
   }
 
-  // Reset all non-OUT players for new hand
+  // Reset hand-specific state for everyone so eliminated players cannot
+  // contribute stale totals to a later hand's side pots.
   players.forEach(p => {
+    p.holeCards = [];
+    p.currentBet = 0;
+    p.totalHandBet = 0;
     if (p.status !== 'OUT') {
       p.status = 'ACTIVE';
-      p.holeCards = [];
-      p.currentBet = 0;
-      p.totalHandBet = 0;
     }
   });
 
@@ -332,6 +333,19 @@ function checkRoundCompletion(room) {
 
   // ── Case 2: All remaining ACTIVE players have matched the bet ─────────────
   const activePlayers2 = players.filter(p => p.status === 'ACTIVE');
+  const onlyActivePlayer = activePlayers2.length === 1 ? activePlayers2[0] : null;
+  const bettingCanEnd = activePlayers2.length === 0 ||
+    (onlyActivePlayer &&
+      onlyActivePlayer.currentBet === room.currentHighestBet &&
+      onlyActivePlayer.hasActed);
+
+  if (bettingCanEnd && activePlayers.length > 1) {
+    while (room.communityCards.length < 5) {
+      room.communityCards.push(room.deck.shift());
+    }
+    room.status = 'SHOWDOWN';
+    return resolveShowdown(room);
+  }
 
   const bettingComplete = activePlayers2.every(p =>
     p.currentBet === room.currentHighestBet && p.hasActed
@@ -401,6 +415,24 @@ function checkRoundCompletion(room) {
  */
 function resolveShowdown(room) {
   const players = room.players;
+
+  const contributors = players
+    .filter(player => player.status !== 'OUT' && player.totalHandBet > 0)
+    .sort((a, b) => b.totalHandBet - a.totalHandBet);
+  const highestContribution = contributors[0];
+  const nextHighestContribution = contributors[1]?.totalHandBet ?? 0;
+  if (
+    highestContribution &&
+    highestContribution.totalHandBet > nextHighestContribution &&
+    contributors.filter(player => player.totalHandBet === highestContribution.totalHandBet).length === 1
+  ) {
+    const unmatchedAmount = highestContribution.totalHandBet - nextHighestContribution;
+    highestContribution.coins += unmatchedAmount;
+    highestContribution.totalHandBet -= unmatchedAmount;
+    highestContribution.currentBet = Math.max(0, highestContribution.currentBet - unmatchedAmount);
+    room.pot -= unmatchedAmount;
+  }
+
   const sidePots = calculateSidePots(players);
 
   // Evaluate the showdown
@@ -417,16 +449,12 @@ function resolveShowdown(room) {
       ? eligibleWinners
       : (() => {
           const eligiblePlayers = players.filter(p =>
-            pot.eligiblePlayerIds.includes(p.playerId) && p.status !== 'FOLDED'
+            pot.eligiblePlayerIds.includes(p.playerId) && p.status !== 'FOLDED' && p.status !== 'OUT'
           );
-          try {
-            return evaluateShowdown(eligiblePlayers, room.communityCards).winners;
-          } catch {
-            return [];
-          }
+          return eligiblePlayers.length
+            ? evaluateShowdown(eligiblePlayers, room.communityCards).winners
+            : showdownResult.winners;
         })();
-
-    if (potWinners.length === 0) continue;
 
     const share = Math.floor(pot.amount / potWinners.length);
     const remainder = pot.amount % potWinners.length;

@@ -129,6 +129,17 @@ function DealNextButton({ roomCode, waitingForDeal }) {
   );
 }
 
+function getWaitingForDeal(state) {
+  if (state?.status !== 'SHOWDOWN' || !Array.isArray(state.players) || !state.players.length) return null;
+  const nextDealer = state.players.find((player, index) => {
+    const distance = (index - state.dealerIdx + state.players.length) % state.players.length;
+    return distance > 0 && player.status !== 'OUT' && !player.leaveAfterHand && player.coins > 0;
+  });
+  return nextDealer
+    ? { dealerId: nextDealer.playerId, dealerName: nextDealer.name }
+    : null;
+}
+
 function GameOverScreen({ gameOver, onBackToLobby }) {
   return (
     <div className="h-dvh bg-gray-950 flex flex-col items-center justify-center p-6 overflow-hidden">
@@ -164,20 +175,12 @@ export default function PokerTable({ roomState: initialState, onBackToLobby }) {
   useEffect(() => {
     function onState(state) {
       setRoomState(state);
+      setWaitingForDeal(getWaitingForDeal(state));
       // Clear transient states when a new hand begins
       if (state.status === 'PREFLOP') {
         setShowdown(null);
-        setWaitingForDeal(null);
         setGameOver(null);
         clearTimeout(gameOverTimer.current);
-      } else if (state.status === 'SHOWDOWN') {
-        const nextDealer = state.players.find((player, index) => {
-          const distance = (index - state.dealerIdx + state.players.length) % state.players.length;
-          return distance > 0 && player.status !== 'OUT' && !player.leaveAfterHand && player.coins > 0;
-        });
-        setWaitingForDeal(nextDealer
-          ? { dealerId: nextDealer.playerId, dealerName: nextDealer.name }
-          : null);
       }
     }
     function onShowdown(data) {
@@ -214,7 +217,10 @@ export default function PokerTable({ roomState: initialState, onBackToLobby }) {
     };
   }, []);
 
-  useEffect(() => { setRoomState(initialState); }, [initialState]);
+  useEffect(() => {
+    setRoomState(initialState);
+    setWaitingForDeal(getWaitingForDeal(initialState));
+  }, [initialState]);
 
   if (!roomState) return null;
   if (gameOver) {

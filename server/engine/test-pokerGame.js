@@ -73,6 +73,68 @@ console.log('\n── startNewHand ──');
   assert('currentHighestBet = bigBlind (20)', room.currentHighestBet === 20, `bet=${room.currentHighestBet}`);
 }
 
+console.log('\n── all-in blind card dealing ──');
+{
+  const room = makeRoom(3);
+  room.players[2].coins = 10;
+  startNewHand(room);
+
+  assert('Small blind player goes all-in', room.players[2].status === 'ALL_IN');
+  assert('All players, including the all-in blind, get 2 cards',
+    room.players.every(player => player.holeCards.length === 2),
+    room.players.map(player => `${player.name}:${player.holeCards.length}`).join(', '));
+  assert('Exactly 6 cards are dealt', room.deck.length === 52 - 6, `deck=${room.deck.length}`);
+}
+
+console.log('\n── eliminated player stale contribution ──');
+{
+  const room = makeRoom(3);
+  room.players[0].coins = 0;
+  room.players[0].status = 'ALL_IN';
+  room.players[0].totalHandBet = 500;
+  room.players[0].currentBet = 500;
+  room.players[1].coins = 500;
+  room.players[2].coins = 500;
+
+  startNewHand(room);
+
+  assert('Eliminated player stale contribution is cleared',
+    room.players[0].status === 'OUT' && room.players[0].totalHandBet === 0);
+
+  const first = room.players[room.currentTurnIdx];
+  handlePlayerAction(room, first.playerId, 'RAISE', first.currentBet + first.coins);
+  const second = room.players[room.currentTurnIdx];
+  const result = handlePlayerAction(room, second.playerId, 'CALL');
+  const totalCoins = room.players.reduce((sum, player) => sum + player.coins, 0);
+
+  assert('Eliminated player is excluded from side pots',
+    result.handOver && room.players[0].coins === 0);
+  assert('Chips remain conserved after later hand showdown', totalCoins === 1000,
+    `total=${totalCoins}`);
+}
+
+console.log('\n── all-in hand stops further betting ──');
+{
+  const room = makeRoom(3);
+  room.players[0].coins = 100;
+  room.players[1].coins = 100;
+  room.players[2].coins = 500;
+  startNewHand(room);
+
+  const first = room.players[room.currentTurnIdx];
+  handlePlayerAction(room, first.playerId, 'RAISE', 100);
+  const second = room.players[room.currentTurnIdx];
+  handlePlayerAction(room, second.playerId, 'RAISE', 500);
+  const third = room.players[room.currentTurnIdx];
+  const result = handlePlayerAction(room, third.playerId, 'CALL');
+
+  assert('Board runs out when only one player can still bet',
+    result.handOver && room.status === 'SHOWDOWN' && room.communityCards.length === 5);
+  assert('Unmatched excess is returned and total chips are conserved',
+    room.players.reduce((sum, player) => sum + player.coins, 0) === 700,
+    `total=${room.players.reduce((sum, player) => sum + player.coins, 0)}`);
+}
+
 console.log('\n── next hand dealer ──');
 {
   const room = makeRoom(4);
